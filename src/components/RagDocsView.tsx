@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { UploadCloud, FileText, Trash2, Send, Bot, User } from 'lucide-react';
 import { StoredDocument, DocumentChunk, AppSettings, ChatMessage, EcosystemContext } from '../types';
 import { retrieveRelevantChunks, generateRAGAnswer } from '../services/ragEngine';
+import { AiMessageRenderer } from './AiMessageRenderer';
 
 interface RagDocsViewProps {
   documents: StoredDocument[];
@@ -245,8 +246,8 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
                   <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${isUser ? 'bg-slate-900 text-white' : 'bg-sky-100 text-sky-700'}`}>
                     {isUser ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
                   </div>
-                  <div className={`max-w-[85%] p-3 rounded-lg leading-relaxed shadow-xs ${isUser ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-800'}`}>
-                    <div className="whitespace-pre-wrap">{m.content}</div>
+                  <div className={`max-w-[85%] p-3.5 rounded-xl leading-relaxed shadow-2xs ${isUser ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-800'}`}>
+                    <AiMessageRenderer content={m.content} isUser={isUser} />
                     {m.retrievedSources && m.retrievedSources.length > 0 && (
                       <div className="mt-2 pt-1.5 border-t border-slate-100 text-[10px] text-slate-400">
                         Fonte consultata: <b>{m.retrievedSources[0].chunk.documentTitle}</b>
