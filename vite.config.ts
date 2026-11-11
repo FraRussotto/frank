@@ -1,0 +1,388 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { exec } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import zlib from 'node:zlib';
+
+const DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
+const LARAVEL_DIR = '/Users/fra_russo/email-ai-agent';
+
+function decompressString(val: string | null): string {
+  if (!val) return '';
+  if (val.startsWith('gz:')) {
+    try {
+      const buf = Buffer.from(val.slice(3), 'base64');
+      return zlib.inflateSync(buf).toString('utf-8');
+    } catch {
+      return '';
+    }
+  }
+  return val;
+}
+
+function parseJsonSafe(val: any, fallback: any = null) {
+  if (!val) return fallback;
+  if (typeof val === 'object') return val;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return fallback;
+  }
+}
+
+function emailAgentPlugin() {
+  const BASELINE_DATE = '2026-11-01 00:00:00';
+
+  return {
+    name: 'email-agent-api',
+    configureServer(server: any) {
+      // Polling automatico in background ogni 5 minuti a partire da 1 novembre
+      let isBackgroundPolling = false;
+      const runBackgroundPoll = () => {
+        if (isBackgroundPolling) return;
+        isBackgroundPolling = true;
+        exec(`cd "${LARAVEL_DIR}" && php artisan email:poll --since="2026-11-01"`, (pollErr) => {
+          if (!pollErr) {
+            exec(`cd "${LARAVEL_DIR}" && php artisan queue:work --stop-when-empty`, () => {
+              isBackgroundPolling = false;
+            });
+          } else {
+            isBackgroundPolling = false;
+          }
+        });
+      };
+
+      // Avvia il timer ogni 5 minuti
+      const autoPollTimer = setInterval(runBackgroundPoll, 5 * 60 * 1000);
+
+      server.middlewares.use(async (req: any, res: any, next: any) => {
+        
+        // GET /api/live-data
+        if (req.url === '/api/live-data' && req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
+          if (!existsSync(DB_PATH)) {
+            res.end(JSON.stringify({ connected: false, error: 'Database SQLite non trovato' }));
+            return;
+          }
+
+          let db: any = null;
+          try {
+            const { DatabaseSync } = await import('node:sqlite');
+            db = new DatabaseSync(DB_PATH, { readOnly: true });
+            
+            // 1. Utente corrente
+            const users = db.prepare('SELECT id, name, email FROM users LIMIT 1').all() as any[];
+            const currentUser = users[0] || { id: 1, email: 'f.russotto@arteficegroup.com', name: 'Francesco Russotto' };
+
+            // 2. Aggregati Thread (con limite di partenza dal 1 novembre)
+            const aggregates = db.prepare(`
+              SELECT 
+                e.thread_id,
+                COUNT(DISTINCT e.id) AS email_count,
+                MAX(e.received_at) AS last_at,
+                MIN(CASE WHEN r.status='pending' AND r.urgency='high' THEN 1 WHEN r.status='pending' AND r.urgency='medium' THEN 2 WHEN r.status='pending' AND r.urgency='low' THEN 3 END) AS max_urgency,
+                MIN(CASE WHEN r.status='pending' AND r.deadline IS NOT NULL THEN r.deadline END) AS min_deadline,
+                SUM(CASE WHEN r.status='done' THEN 1 ELSE 0 END) AS done_count,
+                SUM(CASE WHEN r.status='pending' THEN 1 ELSE 0 END) AS pending_count,
+                MAX(CASE WHEN r.id IS NOT NULL THEN 1 ELSE 0 END) AS has_requests,
+                MAX(CASE WHEN e.is_hidden = 1 THEN 1 ELSE 0 END) AS is_hidden
+              FROM emails e
+              LEFT JOIN requests r ON r.email_id = e.id AND r.user_id = e.user_id
+              WHERE e.user_id = ? AND e.source_type = 'email' AND e.received_at >= ?
+              GROUP BY e.thread_id
+              ORDER BY last_at DESC
+            `).all(currentUser.id, BASELINE_DATE) as any[];
+
+            // 3. Tutte le email dell'utente (dal 1 novembre)
+            const allEmails = db.prepare(`
+              SELECT id, google_message_id, thread_id, sender, sender_email, subject, received_at, body_text, body_html, recipients, event_link, is_hidden
+              FROM emails
+              WHERE user_id = ? AND source_type = 'email' AND received_at >= ?
+              ORDER BY received_at DESC, id DESC
+            `).all(currentUser.id, BASELINE_DATE) as any[];
+
+            // 4. Tutte le richieste (relative a email dal 1 novembre)
+            const allRequests = db.prepare(`
+              SELECT r.id, r.email_id, r.sender, r.sender_email, r.subject, r.summary, r.urgency, r.deadline, r.status, r.created_at
+              FROM requests r
+              JOIN emails e ON r.email_id = e.id
+              WHERE r.user_id = ? AND e.received_at >= ?
+              ORDER BY r.created_at ASC
+            `).all(currentUser.id, BASELINE_DATE) as any[];
+
+            // Mappe di indicizzazione rapida
+            const emailsByThread = new Map<string, any[]>();
+            for (const email of allEmails) {
+              if (!emailsByThread.has(email.thread_id)) {
+                emailsByThread.set(email.thread_id, []);
+              }
+              emailsByThread.get(email.thread_id)!.push(email);
+            }
+
+            const requestsByEmailId = new Map<number, any[]>();
+            for (const req of allRequests) {
+              if (!requestsByEmailId.has(req.email_id)) {
+                requestsByEmailId.set(req.email_id, []);
+              }
+              requestsByEmailId.get(req.email_id)!.push(req);
+            }
+
+            // 5. Costruzione Threads raggruppati fedelmente a Laravel
+            const threads = aggregates.map(agg => {
+              const group = emailsByThread.get(agg.thread_id) || [];
+              const latest = group[0];
+
+              // Mittenti unici con nome ed email
+              const sendersMap = new Map<string, { name: string; email: string }>();
+              for (const email of group) {
+                if (email.sender_email && !sendersMap.has(email.sender_email)) {
+                  sendersMap.set(email.sender_email, {
+                    name: email.sender || email.sender_email,
+                    email: email.sender_email
+                  });
+                }
+              }
+
+              // Tutte le richieste del thread (raccolte da tutte le email del thread)
+              const threadRequests: any[] = [];
+              for (const email of group) {
+                const reqsForEmail = requestsByEmailId.get(email.id) || [];
+                threadRequests.push(...reqsForEmail);
+              }
+              threadRequests.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
+
+              const maxUrgency = agg.max_urgency === 1 ? 'high' : agg.max_urgency === 2 ? 'medium' : agg.max_urgency === 3 ? 'low' : null;
+
+              return {
+                thread_id: agg.thread_id,
+                subject: latest?.subject || 'Nessun oggetto',
+                source_type: 'email',
+                email_count: Number(agg.email_count),
+                last_at: agg.last_at,
+                senders: Array.from(sendersMap.values()),
+                max_urgency: maxUrgency,
+                min_deadline: agg.min_deadline || null,
+                done_count: Number(agg.done_count || 0),
+                pending_count: Number(agg.pending_count || 0),
+                has_requests: Boolean(agg.has_requests),
+                is_hidden: Boolean(agg.is_hidden),
+                requests: threadRequests.map(r => ({
+                  id: r.id,
+                  email_id: r.email_id,
+                  summary: r.summary,
+                  urgency: r.urgency || 'medium',
+                  deadline: r.deadline || null,
+                  status: (r.status === 'done' || r.status === 'completed') ? 'done' : 'pending',
+                  created_at: r.created_at
+                })),
+                emails: group.map(e => ({
+                  id: e.id,
+                  google_message_id: e.google_message_id,
+                  sender: e.sender,
+                  sender_email: e.sender_email,
+                  subject: e.subject,
+                  received_at: e.received_at,
+                  source_type: 'email',
+                  recipients: parseJsonSafe(e.recipients, { to: [], cc: [] }),
+                  event_link: e.event_link,
+                  body_text: decompressString(e.body_text),
+                  body_html: decompressString(e.body_html)
+                }))
+              };
+            });
+
+            // 6. Eventi e Meeting a Calendario (separazione upcoming vs past, escludendo presenze e duplicati)
+            const todayStr = new Date().toISOString().split('T')[0];
+            const upcomingEvents = db.prepare(`
+              SELECT id, sender, sender_email, subject, event_start_at, event_end_at, source_type, created_at, recipients, event_link
+              FROM emails
+              WHERE source_type = 'meeting'
+                AND event_start_at >= ?
+                AND LOWER(TRIM(subject)) NOT IN ('home', 'office')
+                AND subject NOT LIKE '%call settimanale AREA Sviluppo IT%'
+                AND subject NOT LIKE '%IDIA - Perniceni%'
+              ORDER BY event_start_at ASC
+              LIMIT 30
+            `).all(todayStr) as any[];
+
+            const pastEvents = db.prepare(`
+              SELECT id, sender, sender_email, subject, event_start_at, event_end_at, source_type, created_at, recipients, event_link
+              FROM emails
+              WHERE source_type = 'meeting'
+                AND event_start_at < ?
+                AND LOWER(TRIM(subject)) NOT IN ('home', 'office')
+                AND subject NOT LIKE '%call settimanale AREA Sviluppo IT%'
+                AND subject NOT LIKE '%IDIA - Perniceni%'
+              ORDER BY event_start_at DESC
+              LIMIT 15
+            `).all(todayStr) as any[];
+
+            // Totali generali per badge e statistiche (esclusi gli hidden)
+            const totalPendingRow = db.prepare(`
+              SELECT COUNT(*) as c 
+              FROM requests r 
+              JOIN emails e ON e.id = r.email_id 
+              WHERE r.user_id = ? AND r.status = 'pending' AND e.is_hidden = 0
+            `).get(currentUser.id) as any;
+
+            const totalDoneRow = db.prepare(`
+              SELECT COUNT(*) as c 
+              FROM requests r 
+              JOIN emails e ON e.id = r.email_id 
+              WHERE r.user_id = ? AND r.status = 'done' AND e.is_hidden = 0
+            `).get(currentUser.id) as any;
+
+            const formatEvent = (e: any, isPast = false) => {
+              const startDate = e.event_start_at ? new Date(e.event_start_at) : new Date();
+              return {
+                id: `ev-real-${e.id}`,
+                account: 'work',
+                accountEmail: currentUser.email,
+                title: e.subject || 'Meeting di lavoro',
+                date: startDate.toISOString().split('T')[0],
+                time: startDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+                duration: '1h',
+                category: 'Meeting',
+                eventLink: e.event_link,
+                isPast
+              };
+            };
+
+            res.end(JSON.stringify({
+              connected: true,
+              user: currentUser,
+              threads,
+              totalPending: totalPendingRow?.c || 0,
+              totalDone: totalDoneRow?.c || 0,
+              upcomingEvents: upcomingEvents.map(e => formatEvent(e, false)),
+              pastEvents: pastEvents.map(e => formatEvent(e, true))
+            }));
+          } catch (err: any) {
+            console.error('Error fetching SQLite data:', err);
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: err.message }));
+          } finally {
+            if (db) {
+              try { db.close(); } catch {}
+            }
+          }
+          return;
+        }
+
+        // POST /api/toggle-request (Singola richiesta smarcabile)
+        if (req.url === '/api/toggle-request' && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: any) => { body += chunk; });
+          req.on('end', async () => {
+            let db: any = null;
+            try {
+              const { requestId, newStatus } = JSON.parse(body);
+              const { DatabaseSync } = await import('node:sqlite');
+              db = new DatabaseSync(DB_PATH);
+              const statusVal = newStatus === 'done' ? 'done' : 'pending';
+              db.prepare("UPDATE requests SET status = ?, updated_at = datetime('now') WHERE id = ?").run(statusVal, requestId);
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: true, status: statusVal }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            } finally {
+              if (db) {
+                try { db.close(); } catch {}
+              }
+            }
+          });
+          return;
+        }
+
+        // POST /api/toggle-thread (Smarca/riapre tutte le richieste del thread)
+        if (req.url === '/api/toggle-thread' && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: any) => { body += chunk; });
+          req.on('end', async () => {
+            let db: any = null;
+            try {
+              const { threadId, action } = JSON.parse(body);
+              const { DatabaseSync } = await import('node:sqlite');
+              db = new DatabaseSync(DB_PATH);
+              const newStatus = action === 'done' ? 'done' : 'pending';
+              db.prepare(`
+                UPDATE requests 
+                SET status = ?, updated_at = datetime('now')
+                WHERE email_id IN (SELECT id FROM emails WHERE thread_id = ?)
+              `).run(newStatus, threadId);
+
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: true, newStatus }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            } finally {
+              if (db) {
+                try { db.close(); } catch {}
+              }
+            }
+          });
+          return;
+        }
+
+        // POST /api/hide-thread (Nasconde o ripristina un thread)
+        if (req.url === '/api/hide-thread' && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: any) => { body += chunk; });
+          req.on('end', async () => {
+            let db: any = null;
+            try {
+              const { threadId, isHidden } = JSON.parse(body);
+              const { DatabaseSync } = await import('node:sqlite');
+              db = new DatabaseSync(DB_PATH);
+              const val = isHidden ? 1 : 0;
+              db.prepare("UPDATE emails SET is_hidden = ?, updated_at = datetime('now') WHERE thread_id = ?").run(val, threadId);
+
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: true, isHidden: val }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            } finally {
+              if (db) {
+                try { db.close(); } catch {}
+              }
+            }
+          });
+          return;
+        }
+
+        // POST /api/sync (Ultra-veloce: esegue email:poll a partire dal 1 novembre e lancia queue:work in background)
+        if (req.url === '/api/sync' && req.method === 'POST') {
+          res.setHeader('Content-Type', 'application/json');
+          exec(`cd "${LARAVEL_DIR}" && php artisan email:poll --since="${BASELINE_DATE}"`, (pollError, pollStdout) => {
+            if (pollError) {
+              console.warn('Poll warning:', pollError.message);
+            }
+            // Lancia l'elaboratore dei job in background in modo asincrono (senza bloccare la risposta HTTP)
+            exec(`cd "${LARAVEL_DIR}" && php artisan queue:work --stop-when-empty`, () => {});
+
+            // Risposta immediata al frontend
+            res.end(JSON.stringify({
+              success: true,
+              message: 'Sincronizzazione completata con successo',
+              details: (pollStdout || '').trim()
+            }));
+          });
+          return;
+        }
+
+        next();
+      });
+    }
+  };
+}
+
+export default defineConfig({
+  plugins: [react(), emailAgentPlugin()],
+  server: {
+    port: 5173,
+    host: true
+  }
+});
