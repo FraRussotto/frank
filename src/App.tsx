@@ -255,28 +255,30 @@ export const App: React.FC = () => {
   };
 
   // Handlers Richieste Email AI & Thread
-  const handleToggleRequest = async (requestId: number, newStatus: 'done' | 'pending') => {
+  const handleToggleRequest = async (requestId: any, newStatus: 'done' | 'pending') => {
     // Aggiorna threads in locale
     setThreads(prev => prev.map(t => ({
       ...t,
-      requests: t.requests.map(r => r.id === requestId ? { ...r, status: newStatus } : r)
+      requests: t.requests.map(r => String(r.id) === String(requestId) ? { ...r, status: newStatus } : r)
     })));
 
     // Aggiorna requests compatibili per Overview
-    setRequests(prev => prev.map(r => r.id === String(requestId) ? {
+    setRequests(prev => prev.map(r => String(r.id) === String(requestId) ? {
       ...r,
       status: newStatus === 'done' ? 'completed' : 'pending'
     } : r));
 
-    // Notifica backend SQLite
-    try {
-      await fetch('/api/toggle-request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId, newStatus })
-      });
-    } catch (err) {
-      console.error('Errore toggle request:', err);
+    // Notifica backend SQLite se id numerico
+    if (typeof requestId === 'number' || !isNaN(Number(requestId))) {
+      try {
+        await fetch('/api/toggle-request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requestId: Number(requestId), newStatus })
+        });
+      } catch (err) {
+        console.error('Errore toggle request:', err);
+      }
     }
   };
 

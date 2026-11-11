@@ -171,7 +171,75 @@ function emailAgentPlugin() {
               }
               threadRequests.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
 
-              const maxUrgency = agg.max_urgency === 1 ? 'high' : agg.max_urgency === 2 ? 'medium' : agg.max_urgency === 3 ? 'low' : null;
+              // Se l'Agente Frank ha analizzato il thread, usiamo le sue attività autentiche
+              const agentActive = agentAnalysis?.activeTasks || [];
+              const agentResolved = agentAnalysis?.resolvedTasks || [];
+              const hasAgentAnalysis = agentAnalysis !== null;
+
+              const hasRequests = hasAgentAnalysis 
+                ? (agentActive.length > 0 || agentResolved.length > 0)
+                : Boolean(agg.has_requests);
+
+              const pendingCount = hasAgentAnalysis
+                ? agentActive.length
+                : Number(agg.pending_count || 0);
+
+              const doneCount = hasAgentAnalysis
+                ? agentResolved.length
+                : Number(agg.done_count || 0);
+
+              let maxUrgency: string | null = null;
+              if (hasAgentAnalysis) {
+                if (agentActive.some((t: any) => t.urgency === 'high' || t.urgency === 'alta')) {
+                  maxUrgency = 'high';
+                } else if (agentActive.some((t: any) => t.urgency === 'medium' || t.urgency === 'media')) {
+                  maxUrgency = 'medium';
+                } else if (agentActive.some((t: any) => t.urgency === 'low' || t.urgency === 'bassa')) {
+                  maxUrgency = 'low';
+                }
+              } else {
+                maxUrgency = agg.max_urgency === 1 ? 'high' : agg.max_urgency === 2 ? 'medium' : agg.max_urgency === 3 ? 'low' : null;
+              }
+
+              // Mappatura richieste
+              let finalRequests: any[] = [];
+              if (hasAgentAnalysis) {
+                agentActive.forEach((t: any, idx: number) => {
+                  finalRequests.push({
+                    id: `act-${agg.thread_id}-${idx}`,
+                    email_id: 0,
+                    summary: t.summary,
+                    urgency: t.urgency || 'medium',
+                    deadline: null,
+                    status: 'pending',
+                    reason: t.reason,
+                    created_at: agg.last_at
+                  });
+                });
+                agentResolved.forEach((t: any, idx: number) => {
+                  finalRequests.push({
+                    id: `res-${agg.thread_id}-${idx}`,
+                    email_id: 0,
+                    summary: t.summary,
+                    urgency: 'low',
+                    deadline: null,
+                    status: 'done',
+                    resolvedBy: t.resolvedBy,
+                    resolvedNote: t.resolvedNote,
+                    created_at: agg.last_at
+                  });
+                });
+              } else {
+                finalRequests = threadRequests.map(r => ({
+                  id: r.id,
+                  email_id: r.email_id,
+                  summary: r.summary,
+                  urgency: r.urgency || 'medium',
+                  deadline: r.deadline || null,
+                  status: (r.status === 'done' || r.status === 'completed') ? 'done' : 'pending',
+                  created_at: r.created_at
+                }));
+              }
 
               return {
                 thread_id: agg.thread_id,
@@ -182,19 +250,11 @@ function emailAgentPlugin() {
                 senders: Array.from(sendersMap.values()),
                 max_urgency: maxUrgency,
                 min_deadline: agg.min_deadline || null,
-                done_count: Number(agg.done_count || 0),
-                pending_count: Number(agg.pending_count || 0),
-                has_requests: Boolean(agg.has_requests),
+                done_count: doneCount,
+                pending_count: pendingCount,
+                has_requests: hasRequests,
                 is_hidden: Boolean(agg.is_hidden),
-                requests: threadRequests.map(r => ({
-                  id: r.id,
-                  email_id: r.email_id,
-                  summary: r.summary,
-                  urgency: r.urgency || 'medium',
-                  deadline: r.deadline || null,
-                  status: (r.status === 'done' || r.status === 'completed') ? 'done' : 'pending',
-                  created_at: r.created_at
-                })),
+                requests: finalRequests,
                 emails: group.map(e => ({
                   id: e.id,
                   google_message_id: e.google_message_id,
@@ -259,20 +319,9 @@ function emailAgentPlugin() {
               LIMIT 15
             `).all(todayStr) as any[];
 
-            // Totali generali per badge e statistiche (esclusi gli hidden)
-            const totalPendingRow = db.prepare(`
-              SELECT COUNT(*) as c 
-              FROM requests r 
-              JOIN emails e ON e.id = r.email_id 
-              WHERE r.user_id = ? AND r.status = 'pending' AND e.is_hidden = 0
-            `).get(currentUser.id) as any;
-
-            const totalDoneRow = db.prepare(`
-              SELECT COUNT(*) as c 
-              FROM requests r 
-              JOIN emails e ON e.id = r.email_id 
-              WHERE r.user_id = ? AND r.status = 'done' AND e.is_hidden = 0
-            `).get(currentUser.id) as any;
+            // Totali generali derivati dai thread calcolati dall'Agente Frank (esclusi gli hidden)
+            const totalPending = threads.filter(t => !t.is_hidden).reduce((acc, t) => acc + (t.pending_count || 0), 0);
+            const totalDone = threads.filter(t => !t.is_hidden).reduce((acc, t) => acc + (t.done_count || 0), 0);
 
             const formatEvent = (e: any, isPast = false) => {
               const startDate = e.event_start_at ? new Date(e.event_start_at) : new Date();
@@ -296,8 +345,8 @@ function emailAgentPlugin() {
               threads,
               agentTasks,
               agentStatus: autonomousAgent.getStatus(),
-              totalPending: totalPendingRow?.c || 0,
-              totalDone: totalDoneRow?.c || 0,
+              totalPending,
+              totalDone,
               upcomingEvents: upcomingEvents.map(e => formatEvent(e, false)),
               pastEvents: pastEvents.map(e => formatEvent(e, true))
             }));

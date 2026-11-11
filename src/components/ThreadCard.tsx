@@ -19,12 +19,15 @@ import {
 import { ThreadAgentAnalysis } from '../types';
 
 export interface ThreadTaskRequest {
-  id: number;
+  id: number | string;
   email_id: number;
   summary: string;
   urgency: 'high' | 'medium' | 'low' | string;
   deadline?: string | null;
   status: 'pending' | 'done';
+  reason?: string;
+  resolvedBy?: string;
+  resolvedNote?: string;
   created_at?: string;
 }
 
@@ -66,7 +69,7 @@ export interface EmailThreadData {
 
 interface ThreadCardProps {
   thread: EmailThreadData;
-  onToggleRequest: (requestId: number, newStatus: 'done' | 'pending') => void;
+  onToggleRequest: (requestId: any, newStatus: 'done' | 'pending') => void;
   onToggleThread: (threadId: string, action: 'done' | 'reopen') => void;
   onToggleHideThread?: (threadId: string, isHidden: boolean) => void;
   onOpenAIDraft: (thread: EmailThreadData) => void;
@@ -653,9 +656,18 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({
                     onClick={() => onToggleRequest(request.id, isItemDone ? 'pending' : 'done')}
                     className="flex-1 min-w-0 cursor-pointer select-none leading-relaxed"
                   >
-                    <span className={`transition-colors ${isItemDone ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                    <span className={`transition-colors font-medium ${isItemDone ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
                       {request.summary}
                     </span>
+                    {request.reason && !isItemDone && (
+                      <p className="text-[11px] text-slate-500 mt-0.5">{request.reason}</p>
+                    )}
+                    {request.resolvedBy && (
+                      <p className="text-[11px] font-semibold text-emerald-700 mt-0.5">Risolto da: {request.resolvedBy}</p>
+                    )}
+                    {request.resolvedNote && (
+                      <p className="text-[11px] text-slate-400 mt-0.5">{request.resolvedNote}</p>
+                    )}
                     {request.deadline && (
                       <span className="ml-2 inline-flex items-center rounded-full bg-slate-200/70 px-1.5 py-0.2 text-[10px] font-semibold text-slate-600">
                         Scadenza: {new Date(request.deadline).toLocaleDateString('it-IT')}
