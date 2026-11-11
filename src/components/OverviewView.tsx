@@ -94,9 +94,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Panoramica Second Brain</h1>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 font-medium">
-              Tutto in un unico posto
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Panoramica Frank</h1>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
+              Second Brain Hub
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
@@ -343,7 +343,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Sparkles className="w-4 h-4 text-purple-600" />
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700">Chiedi al tuo Second Brain & RAG</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700">Chiedi a Frank & RAG</h3>
               </div>
               <button
                 onClick={() => onNavigateTab('docs-rag')}

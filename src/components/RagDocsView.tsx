@@ -24,7 +24,7 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
     {
       id: 'init-msg',
       sender: 'assistant',
-      content: 'Ciao Francesco! Sono il tuo assistente Second Brain: puoi chiedermi qualsiasi cosa sulle attività della settimana, riunioni a calendario, task da email-ai-agent, spese fisse o documenti archiviati.',
+      content: 'Ciao Francesco! Sono Frank, il tuo Second Brain: puoi chiedermi qualsiasi cosa sulle attività della settimana, riunioni a calendario, task dalle email, spese fisse o documenti archiviati.',
       timestamp: 'Adesso'
     }
   ]);

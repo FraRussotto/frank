@@ -41,13 +41,13 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
             onClick={() => onTabChange('overview')}
             className="flex items-center space-x-2.5 cursor-pointer"
           >
-            <div className="w-7 h-7 rounded-lg bg-sky-500 flex items-center justify-center text-white font-bold text-sm shadow-xs">
-              B
+            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-xs">
+              F
             </div>
             <div className="flex items-center space-x-2">
-              <span className="font-semibold text-sm tracking-tight text-slate-900">Second Brain</span>
-              <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                Personal Hub
+              <span className="font-bold text-sm tracking-tight text-slate-900">Frank</span>
+              <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                Second Brain
               </span>
             </div>
           </div>

@@ -35,7 +35,7 @@ export const FlatSettingsModal: React.FC<FlatSettingsModalProps> = ({
         <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Settings className="w-4 h-4 text-sky-600" />
-            <h3 className="text-sm font-semibold text-slate-800">Impostazioni Second Brain Hub</h3>
+            <h3 className="text-sm font-semibold text-slate-800">Impostazioni Frank (Second Brain)</h3>
           </div>
           <button
             onClick={onClose}

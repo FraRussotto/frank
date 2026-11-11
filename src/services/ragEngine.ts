@@ -138,11 +138,11 @@ export async function generateRAGAnswer(
         ? sources.map(s => `[Documento: ${s.chunk.documentTitle} - Rilevanza: ${(s.score * 100).toFixed(0)}%]:\n${s.chunk.content}`).join('\n\n')
         : 'Nessun documento RAG specifico con corrispondenze dirette.';
 
-      const fullPrompt = `Sei l'assistente AI onnisciente del "Second Brain" di Francesco Russotto.
+      const fullPrompt = `Sei Frank, il Second Brain onnisciente di Francesco Russotto.
 Hai piena visibilità sull'intero ecosistema della dashboard:
 - Data odierna di riferimento: ${currentDayName}, ${todayStr} (anno 2026).
 - Calendario sincronizzato (Account Lavoro e Personale).
-- Email & Task estratti da email-ai-agent (richieste operative, urgenze, scadenze).
+- Email & Task estratti (richieste operative, urgenze, scadenze).
 - Spese fisse mensili e budget.
 - Documenti personali caricati nel RAG.
 
