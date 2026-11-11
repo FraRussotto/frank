@@ -61,6 +61,7 @@ export interface EmailThreadData {
   is_hidden: boolean;
   requests: ThreadTaskRequest[];
   emails: ThreadEmailMessage[];
+  agentAnalysis?: ThreadAgentAnalysis | null;
 }
 
 interface ThreadCardProps {
@@ -144,10 +145,17 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({
 
   // Thread Agent state
   const [showAgent, setShowAgent] = useState(false);
-  const [agentAnalysis, setAgentAnalysis] = useState<ThreadAgentAnalysis | null>(null);
+  const [agentAnalysis, setAgentAnalysis] = useState<ThreadAgentAnalysis | null>(thread.agentAnalysis || null);
   const [isAgentLoading, setIsAgentLoading] = useState(false);
   const [agentError, setAgentError] = useState<string | null>(null);
   const [copiedDraft, setCopiedDraft] = useState(false);
+
+  // Sincronizza lo stato locale quando arriva una nuova analisi autonoma via props
+  React.useEffect(() => {
+    if (thread.agentAnalysis) {
+      setAgentAnalysis(thread.agentAnalysis);
+    }
+  }, [thread.agentAnalysis]);
 
   const fetchAgentAnalysis = async (force = false) => {
     if (agentAnalysis && !force) {
@@ -221,6 +229,36 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({
           
           {/* Badge row */}
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
+            {/* Status dell'Agente Frank Autonomo */}
+            {agentAnalysis ? (
+              <span
+                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                  agentAnalysis.status === 'action_required'
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : agentAnalysis.status === 'waiting_others'
+                    ? 'bg-sky-50 text-sky-700 border-sky-200'
+                    : agentAnalysis.status === 'resolved'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                }`}
+              >
+                {agentAnalysis.status === 'action_required' && <AlertCircle className="w-3 h-3 text-rose-500" />}
+                {agentAnalysis.status === 'waiting_others' && <Clock className="w-3 h-3 text-sky-500" />}
+                {agentAnalysis.status === 'resolved' && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                <span>{agentAnalysis.statusLabel}</span>
+                {agentAnalysis.activeTasks && agentAnalysis.activeTasks.length > 0 && (
+                  <span className="ml-0.5 px-1 rounded-full bg-rose-200/80 text-rose-800 text-[10px]">
+                    {agentAnalysis.activeTasks.length}
+                  </span>
+                )}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-medium border border-indigo-200/60">
+                <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />
+                <span>Analisi in corso...</span>
+              </span>
+            )}
+
             {urgency && (
               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${urgency.className}`}>
                 {urgency.label}
@@ -280,6 +318,22 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({
                 <span className="text-slate-400">· {relativeTime(thread.last_at)}</span>
               )}
             </p>
+          )}
+
+          {/* Sintesi & Prossimo Passo Frank */}
+          {agentAnalysis?.summary && (
+            <div className="mt-2.5 rounded-xl bg-slate-50/80 border border-slate-200/80 p-3 space-y-1.5">
+              <p className="text-xs text-slate-800 leading-relaxed font-normal">
+                <span className="font-bold text-indigo-700">Analisi Frank: </span>
+                {agentAnalysis.summary}
+              </p>
+              {agentAnalysis.suggestedNextStep && (
+                <div className="pt-1.5 border-t border-slate-200/50 flex items-start gap-1.5 text-xs text-indigo-950 font-medium">
+                  <ArrowRight className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
+                  <span><strong className="text-indigo-900">Prossimo passo:</strong> {agentAnalysis.suggestedNextStep}</span>
+                </div>
+              )}
+            </div>
           )}
         </div>
 

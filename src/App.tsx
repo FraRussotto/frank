@@ -18,7 +18,8 @@ import {
   EmailAIRequest,
   StoredDocument,
   DocumentChunk,
-  AppSettings
+  AppSettings,
+  AgentWorkerStatus
 } from './types';
 import { chunkText } from './services/ragEngine';
 
@@ -51,6 +52,7 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncToast, setSyncToast] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
+  const [agentStatus, setAgentStatus] = useState<AgentWorkerStatus | null>(null);
 
   const [showExpenses, setShowExpenses] = useState<boolean>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.SHOW_EXPENSES);
@@ -133,29 +135,37 @@ export const App: React.FC = () => {
           if (data.user?.email) {
             setSettings(prev => ({ ...prev, workEmail: data.user.email }));
           }
+          if (data.agentStatus) {
+            setAgentStatus(data.agentStatus);
+          }
           if (Array.isArray(data.threads) && data.threads.length > 0) {
             setThreads(data.threads);
-            // Mantiene sincronizzata la lista richieste per Overview e badge escludendo i thread nascosti
-            const allReqs: EmailAIRequest[] = [];
-            data.threads.forEach((t: EmailThreadData) => {
-              if (!t.is_hidden) {
-                t.requests.forEach(r => {
-                  allReqs.push({
-                    id: String(r.id),
-                    sender: t.senders[0]?.name || 'Mittente',
-                    senderEmail: t.senders[0]?.email || '',
-                    subject: t.subject,
-                    summary: r.summary,
-                    urgency: (r.urgency === 'high' || r.urgency === 'alta') ? 'alta' : (r.urgency === 'low' || r.urgency === 'bassa') ? 'bassa' : 'media',
-                    deadline: r.deadline || undefined,
-                    status: r.status === 'done' ? 'completed' : 'pending',
-                    receivedAt: t.last_at
+            // Se l'Agente Frank ha verificato task attivi, usa prioritariamente quelli per l'Overview
+            if (Array.isArray(data.agentTasks) && data.agentTasks.length > 0) {
+              setRequests(data.agentTasks);
+            } else {
+              // Fallback sulla lista di richieste aggregate se l'agente sta ancora completando l'analisi
+              const allReqs: EmailAIRequest[] = [];
+              data.threads.forEach((t: EmailThreadData) => {
+                if (!t.is_hidden) {
+                  t.requests.forEach(r => {
+                    allReqs.push({
+                      id: String(r.id),
+                      sender: t.senders[0]?.name || 'Mittente',
+                      senderEmail: t.senders[0]?.email || '',
+                      subject: t.subject,
+                      summary: r.summary,
+                      urgency: (r.urgency === 'high' || r.urgency === 'alta') ? 'alta' : (r.urgency === 'low' || r.urgency === 'bassa') ? 'bassa' : 'media',
+                      deadline: r.deadline || undefined,
+                      status: r.status === 'done' ? 'completed' : 'pending',
+                      receivedAt: t.last_at
+                    });
                   });
-                });
+                }
+              });
+              if (allReqs.length > 0) {
+                setRequests(allReqs);
               }
-            });
-            if (allReqs.length > 0) {
-              setRequests(allReqs);
             }
           } else if (Array.isArray(data.requests) && data.requests.length > 0) {
             setRequests(data.requests);
@@ -430,6 +440,7 @@ export const App: React.FC = () => {
             chunks={chunks}
             settings={settings}
             showExpenses={showExpenses}
+            agentStatus={agentStatus}
             onNavigateTab={setActiveTab}
             onToggleExpensePaid={handleToggleExpensePaid}
             onToggleRequestStatus={handleToggleRequestStatus}

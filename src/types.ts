@@ -112,4 +112,13 @@ export interface ThreadAgentAnalysis {
     body: string;
   };
   analyzedAt?: string;
+  modelUsed?: string;
+}
+
+export interface AgentWorkerStatus {
+  queueLength: number;
+  analyzedCount: number;
+  totalCount: number;
+  isProcessing: boolean;
+  currentThreadSubject: string;
 }

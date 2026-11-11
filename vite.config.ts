@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import { exec } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import zlib from 'node:zlib';
+import { autonomousAgent, getAllAnalysesMap, analyzeThreadAutonomous } from './server/autonomousAgent';
 
 const DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
 const LARAVEL_DIR = '/Users/fra_russo/email-ai-agent';
@@ -48,6 +49,9 @@ function emailAgentPlugin() {
   return {
     name: 'email-agent-api',
     configureServer(server: any) {
+      // Avvia l'Agente Autonomo di Frank in background
+      autonomousAgent.start();
+
       // Polling automatico in background ogni 5 minuti a partire da 1 novembre
       let isBackgroundPolling = false;
       const runBackgroundPoll = () => {
@@ -57,6 +61,8 @@ function emailAgentPlugin() {
           if (!pollErr) {
             exec(`cd "${LARAVEL_DIR}" && php artisan queue:work --stop-when-empty`, () => {
               isBackgroundPolling = false;
+              // Sveglia l'agente per studiare eventuali nuove email arrivate
+              autonomousAgent.scanAndEnqueue();
             });
           } else {
             isBackgroundPolling = false;
@@ -139,10 +145,12 @@ function emailAgentPlugin() {
               requestsByEmailId.get(req.email_id)!.push(req);
             }
 
-            // 5. Costruzione Threads raggruppati fedelmente a Laravel
+            // 5. Costruzione Threads raggruppati fedelmente a Laravel con Analisi Autonoma di Frank
+            const savedAnalyses = getAllAnalysesMap();
             const threads = aggregates.map(agg => {
               const group = emailsByThread.get(agg.thread_id) || [];
               const latest = group[0];
+              const agentAnalysis = savedAnalyses.get(agg.thread_id) || null;
 
               // Mittenti unici con nome ed email
               const sendersMap = new Map<string, { name: string; email: string }>();
@@ -199,8 +207,30 @@ function emailAgentPlugin() {
                   event_link: e.event_link,
                   body_text: decompressString(e.body_text),
                   body_html: decompressString(e.body_html)
-                }))
+                })),
+                agentAnalysis
               };
+            });
+
+            // Raccoglie i task verificati dall'Agente Frank per Francesco (esclude thread nascosti)
+            const agentTasks: any[] = [];
+            threads.forEach((t: any) => {
+              if (!t.is_hidden && t.agentAnalysis?.activeTasks && Array.isArray(t.agentAnalysis.activeTasks)) {
+                t.agentAnalysis.activeTasks.forEach((task: any, idx: number) => {
+                  agentTasks.push({
+                    id: `agent-${t.thread_id}-${idx}`,
+                    threadId: t.thread_id,
+                    sender: t.senders[0]?.name || 'Mittente',
+                    senderEmail: t.senders[0]?.email || '',
+                    subject: t.subject,
+                    summary: task.summary,
+                    reason: task.reason,
+                    urgency: (task.urgency === 'high' || task.urgency === 'alta') ? 'alta' : (task.urgency === 'low' || task.urgency === 'bassa') ? 'bassa' : 'media',
+                    status: 'pending',
+                    receivedAt: t.last_at
+                  });
+                });
+              }
             });
 
             // 6. Eventi e Meeting a Calendario (separazione upcoming vs past, escludendo presenze e duplicati)
@@ -264,6 +294,8 @@ function emailAgentPlugin() {
               connected: true,
               user: currentUser,
               threads,
+              agentTasks,
+              agentStatus: autonomousAgent.getStatus(),
               totalPending: totalPendingRow?.c || 0,
               totalDone: totalDoneRow?.c || 0,
               upcomingEvents: upcomingEvents.map(e => formatEvent(e, false)),
@@ -365,11 +397,18 @@ function emailAgentPlugin() {
           return;
         }
 
-        // GET /api/thread-agent/cache (Restituisce tutte le analisi già effettuate)
+        // GET /api/thread-agent/status (Stato dell'Agente Autonomo Frank)
+        if (req.url === '/api/thread-agent/status' && req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ success: true, status: autonomousAgent.getStatus() }));
+          return;
+        }
+
+        // GET /api/thread-agent/cache (Restituisce tutte le analisi già effettuate salvate su Frank DB)
         if (req.url === '/api/thread-agent/cache' && req.method === 'GET') {
           res.setHeader('Content-Type', 'application/json');
           const cacheObj: Record<string, any> = {};
-          threadAgentCache.forEach((val, key) => { cacheObj[key] = val; });
+          getAllAnalysesMap().forEach((val, key) => { cacheObj[key] = val; });
           res.end(JSON.stringify({ success: true, cache: cacheObj }));
           return;
         }
@@ -381,131 +420,14 @@ function emailAgentPlugin() {
           req.on('end', async () => {
             res.setHeader('Content-Type', 'application/json');
             try {
-              const { threadId, forceRefresh } = JSON.parse(bodyStr || '{}');
+              const { threadId } = JSON.parse(bodyStr || '{}');
               if (!threadId) {
                 res.statusCode = 400;
                 res.end(JSON.stringify({ error: 'threadId obbligatorio' }));
                 return;
               }
 
-              if (!forceRefresh && threadAgentCache.has(threadId)) {
-                res.end(JSON.stringify({ success: true, analysis: threadAgentCache.get(threadId) }));
-                return;
-              }
-
-              const { DatabaseSync } = await import('node:sqlite');
-              const db = new DatabaseSync(DB_PATH, { readOnly: true });
-              let emails: any[] = [];
-              try {
-                emails = db.prepare(`
-                  SELECT id, google_message_id, sender, sender_email, subject, received_at, body_text, recipients
-                  FROM emails
-                  WHERE thread_id = ? AND source_type = 'email'
-                  ORDER BY received_at ASC
-                `).all(threadId) as any[];
-              } finally {
-                db.close();
-              }
-
-              if (emails.length === 0) {
-                res.statusCode = 404;
-                res.end(JSON.stringify({ error: 'Nessun messaggio trovato per questo thread' }));
-                return;
-              }
-
-              let conversation = '';
-              emails.forEach((em, idx) => {
-                let text = em.body_text || '';
-                if (text.startsWith('gz:')) {
-                  try {
-                    const buf = Buffer.from(text.slice(3), 'base64');
-                    text = zlib.inflateSync(buf).toString('utf-8');
-                  } catch {}
-                }
-                const toList = parseJsonSafe(em.recipients, {})?.to || [];
-                const toStr = toList.map((t: any) => t.name || t.email).filter(Boolean).join(', ');
-                conversation += `\n--- [Messaggio ${idx + 1} del ${em.received_at}] ---\nDa: ${em.sender} <${em.sender_email}>\nA: ${toStr || 'N/D'}\nOggetto: ${em.subject}\nTesto:\n${text.slice(0, 2000)}\n`;
-              });
-
-              const systemPrompt = `Sei Frank Thread Agent, l'agente esecutivo autonomo per l'analisi intelligente di conversazioni email per Francesco Russotto (f.russotto@arteficegroup.com).
-Analizza l'INTERO THREAD CRONOLOGICO (dal primo all'ultimo messaggio) per comprendere lo stato attuale della discussione e stabilire in modo autonomo:
-1. STATO ATTUALE:
-   - "action_required": c'è una richiesta pendente, una domanda o un compito operativo non ancora risolto che spetta specificamente a Francesco.
-   - "waiting_others": Francesco (o un collega) ha già fatto l'ultima mossa o risposto, e il thread è in attesa di feedback/risposta da parte del cliente o di altri.
-   - "resolved": il tema del thread si è concluso con successo, è stato confermato risolto o non richiede ulteriori azioni.
-   - "informative": notifica automatica, ricevuta o email informativa in cui Francesco era solo in copia senza compiti.
-
-2. COMPITI ATTIVI vs RISOLTI:
-   - Identifica le richieste formulate nel corso del thread.
-   - Se Francesco (o un collega) ha già soddisfatto la richiesta nei messaggi successivi (es. ha inviato il file, confermato la modifica, fatto il deploy), inseriscila in "resolvedTasks" spiegando chi e quando l'ha risolta.
-   - Elenca in "activeTasks" SOLO ED ESCLUSIVAMENTE ciò che resta DAVVERO DA FARE per Francesco.
-
-3. PROSSIMO PASSO SUGGERITO (suggestedNextStep):
-   - Una frase sintetica e pratica che consiglia cosa fare adesso.
-
-4. BOZZA DI RISPOSTA CONTESTUALE (draftReply):
-   - Se lo stato è "action_required", genera una bozza di risposta professionale, calibrata sul tono del thread, pronta all'invio.
-
-Rispondi RIGOROSAMENTE con JSON valido in questa struttura:
-{
-  "status": "action_required" | "waiting_others" | "resolved" | "informative",
-  "statusLabel": "Richiede tua azione" | "In attesa di altri" | "Risolto" | "Informativo",
-  "summary": "Sintesi stato attuale del thread (1-2 frasi)",
-  "myActionRequired": true | false,
-  "activeTasks": [
-    { "summary": "Descrizione compito", "urgency": "high" | "medium" | "low", "reason": "Motivazione" }
-  ],
-  "resolvedTasks": [
-    { "summary": "Compito risolto", "resolvedBy": "Chi l'ha risolto", "resolvedNote": "Dettaglio risoluzione" }
-  ],
-  "suggestedNextStep": "Azione consigliata",
-  "draftReply": { "to": "email o nome", "subject": "oggetto risposta", "body": "testo risposta" }
-}`;
-
-              const apiKey = getAiApiKey();
-              const aiRes = await fetch('https://api.perplexity.ai/chat/completions', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${apiKey}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  model: 'sonar',
-                  messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: `Ecco il thread completo da analizzare:\n${conversation.slice(0, 12000)}` }
-                  ],
-                  temperature: 0.1
-                })
-              });
-
-              if (!aiRes.ok) {
-                const errText = await aiRes.text();
-                throw new Error(`AI API error (${aiRes.status}): ${errText}`);
-              }
-
-              const aiData: any = await aiRes.json();
-              const rawContent = aiData.choices?.[0]?.message?.content || '{}';
-              let parsed: any = {};
-              try {
-                const match = rawContent.match(/```json\s*([\s\S]*?)\s*```/) || rawContent.match(/\{[\s\S]*\}/);
-                parsed = JSON.parse(match ? match[1] || match[0] : rawContent);
-              } catch {
-                parsed = {
-                  status: 'informative',
-                  statusLabel: 'Informativo',
-                  summary: rawContent.slice(0, 200),
-                  myActionRequired: false,
-                  activeTasks: [],
-                  resolvedTasks: [],
-                  suggestedNextStep: 'Nessuna azione richiesta'
-                };
-              }
-
-              parsed.threadId = threadId;
-              parsed.analyzedAt = new Date().toISOString();
-              threadAgentCache.set(threadId, parsed);
-
+              const parsed = await analyzeThreadAutonomous(threadId);
               res.end(JSON.stringify({ success: true, analysis: parsed }));
             } catch (err: any) {
               res.statusCode = 500;
@@ -523,7 +445,10 @@ Rispondi RIGOROSAMENTE con JSON valido in questa struttura:
               console.warn('Poll warning:', pollError.message);
             }
             // Lancia l'elaboratore dei job in background in modo asincrono (senza bloccare la risposta HTTP)
-            exec(`cd "${LARAVEL_DIR}" && php artisan queue:work --stop-when-empty`, () => {});
+            exec(`cd "${LARAVEL_DIR}" && php artisan queue:work --stop-when-empty`, () => {
+              // Quando il worker termina l'importazione, Frank Agent le analizza subito in autonomia
+              autonomousAgent.scanAndEnqueue();
+            });
 
             // Risposta immediata al frontend
             res.end(JSON.stringify({

@@ -8,7 +8,8 @@ import {
   Check,
   RotateCw,
   Clock,
-  Sparkles
+  Sparkles,
+  Brain
 } from 'lucide-react';
 import {
   FixedExpense,
@@ -17,7 +18,8 @@ import {
   StoredDocument,
   DocumentChunk,
   AppSettings,
-  EcosystemContext
+  EcosystemContext,
+  AgentWorkerStatus
 } from '../types';
 import { retrieveRelevantChunks, generateRAGAnswer } from '../services/ragEngine';
 
@@ -29,6 +31,7 @@ interface OverviewViewProps {
   chunks: DocumentChunk[];
   settings: AppSettings;
   showExpenses: boolean;
+  agentStatus?: AgentWorkerStatus | null;
   onNavigateTab: (tab: 'expenses' | 'email-calendar' | 'docs-rag') => void;
   onToggleExpensePaid: (id: string) => void;
   onToggleRequestStatus: (id: string) => void;
@@ -44,6 +47,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   chunks,
   settings,
   showExpenses,
+  agentStatus,
   onNavigateTab,
   onToggleExpensePaid,
   onToggleRequestStatus,
@@ -93,11 +97,25 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       {/* Welcome Banner Flat Pastel */}
       <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">Panoramica Frank</h1>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
               Second Brain Hub
             </span>
+            {agentStatus && (
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
+                agentStatus.isProcessing
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200 animate-pulse'
+                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              }`}>
+                <Brain className="w-3.5 h-3.5 text-indigo-600" />
+                <span>
+                  {agentStatus.isProcessing
+                    ? `Frank Agent: studio thread in corso (${agentStatus.analyzedCount}/${agentStatus.totalCount})...`
+                    : `Frank Agent: ${agentStatus.analyzedCount}/${agentStatus.totalCount} thread studiati`}
+                </span>
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Budget e uscite fisse, eventi da 2 account email, richieste operative estratte con AI e archivio RAG.
