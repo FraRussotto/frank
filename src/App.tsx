@@ -5,6 +5,7 @@ import { ExpensesView } from './components/ExpensesView';
 import { EmailCalendarUnifiedView } from './components/EmailCalendarUnifiedView';
 import { EmailThreadData } from './components/ThreadCard';
 import { RagDocsView } from './components/RagDocsView';
+import { SuperAgentView } from './components/SuperAgentView';
 import { FlatSettingsModal } from './components/FlatSettingsModal';
 import {
   INITIAL_FIXED_EXPENSES,
@@ -19,7 +20,8 @@ import {
   StoredDocument,
   DocumentChunk,
   AppSettings,
-  AgentWorkerStatus
+  AgentWorkerStatus,
+  SuperAgentStatus
 } from './types';
 import { chunkText } from './services/ragEngine';
 
@@ -48,11 +50,13 @@ function isIgnoredEventTitle(title: string): boolean {
 }
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'expenses' | 'email-calendar' | 'docs-rag'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag'>('overview');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncToast, setSyncToast] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
   const [agentStatus, setAgentStatus] = useState<AgentWorkerStatus | null>(null);
+  const [superAgentStatus, setSuperAgentStatus] = useState<SuperAgentStatus | null>(null);
+  const [isOrchestrating, setIsOrchestrating] = useState(false);
 
   const [showExpenses, setShowExpenses] = useState<boolean>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.SHOW_EXPENSES);
@@ -137,6 +141,9 @@ export const App: React.FC = () => {
           }
           if (data.agentStatus) {
             setAgentStatus(data.agentStatus);
+          }
+          if (data.superAgentStatus) {
+            setSuperAgentStatus(data.superAgentStatus);
           }
           if (Array.isArray(data.threads) && data.threads.length > 0) {
             setThreads(data.threads);
@@ -390,6 +397,61 @@ export const App: React.FC = () => {
     }
   };
 
+  // Handlers Frank Super Agente
+  const handleOrchestrateAll = async () => {
+    setIsOrchestrating(true);
+    try {
+      const res = await fetch('/api/super-agent/run-all', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status) {
+          setSuperAgentStatus(data.status);
+        }
+      }
+      await fetchLiveData();
+    } catch (e) {
+      console.error('Errore orchestrazione subagenti:', e);
+    } finally {
+      setIsOrchestrating(false);
+    }
+  };
+
+  const handleRunSubagent = async (subagentId: string) => {
+    try {
+      const res = await fetch('/api/super-agent/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subagentId })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status) {
+          setSuperAgentStatus(data.status);
+        }
+      }
+      await fetchLiveData();
+    } catch (e) {
+      console.error('Errore esecuzione subagente:', e);
+    }
+  };
+
+  const handleGenerateBriefing = async () => {
+    setIsOrchestrating(true);
+    try {
+      const res = await fetch('/api/super-agent/briefing/generate', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.briefing && superAgentStatus) {
+          setSuperAgentStatus({ ...superAgentStatus, latestBriefing: data.briefing });
+        }
+      }
+    } catch (e) {
+      console.error('Errore rigenerazione briefing:', e);
+    } finally {
+      setIsOrchestrating(false);
+    }
+  };
+
   const handleResetData = () => {
     if (window.confirm("Vuoi ripristinare tutti i dati predefiniti?")) {
       localStorage.clear();
@@ -443,11 +505,24 @@ export const App: React.FC = () => {
             settings={settings}
             showExpenses={showExpenses}
             agentStatus={agentStatus}
+            superAgentStatus={superAgentStatus}
             onNavigateTab={setActiveTab}
             onToggleExpensePaid={handleToggleExpensePaid}
             onToggleRequestStatus={handleToggleRequestStatus}
             onSyncAll={handleSyncAll}
             isSyncing={isSyncing}
+          />
+        )}
+
+        {/* Super Agente Coordinator Tab */}
+        {activeTab === 'super-agent' && (
+          <SuperAgentView
+            status={superAgentStatus}
+            onRefreshAll={handleOrchestrateAll}
+            onRunSubagent={handleRunSubagent}
+            onGenerateBriefing={handleGenerateBriefing}
+            onNavigateTab={setActiveTab}
+            isOrchestrating={isOrchestrating}
           />
         )}
 

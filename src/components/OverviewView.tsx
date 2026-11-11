@@ -20,7 +20,8 @@ import {
   DocumentChunk,
   AppSettings,
   EcosystemContext,
-  AgentWorkerStatus
+  AgentWorkerStatus,
+  SuperAgentStatus
 } from '../types';
 import { retrieveRelevantChunks, generateRAGAnswer } from '../services/ragEngine';
 import { AiMessageRenderer } from './AiMessageRenderer';
@@ -34,7 +35,8 @@ interface OverviewViewProps {
   settings: AppSettings;
   showExpenses: boolean;
   agentStatus?: AgentWorkerStatus | null;
-  onNavigateTab: (tab: 'expenses' | 'email-calendar' | 'docs-rag') => void;
+  superAgentStatus?: SuperAgentStatus | null;
+  onNavigateTab: (tab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag') => void;
   onToggleExpensePaid: (id: string) => void;
   onToggleRequestStatus: (id: string) => void;
   onSyncAll: () => void;
@@ -50,6 +52,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   settings,
   showExpenses,
   agentStatus,
+  superAgentStatus,
   onNavigateTab,
   onToggleExpensePaid,
   onToggleRequestStatus,
@@ -135,6 +138,39 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Super Agente Dispatcher & Fleet Bar */}
+      {superAgentStatus && (
+        <div
+          onClick={() => onNavigateTab('super-agent')}
+          className="p-4 rounded-2xl bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 text-white cursor-pointer hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 border border-indigo-800/40"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300 shrink-0">
+              <Brain className="w-5 h-5 text-indigo-300" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white tracking-wide">
+                  Frank Super Agente & Subagenti
+                </span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  {superAgentStatus.subagents.length} reparti orchestrati
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5 line-clamp-1">
+                {superAgentStatus.latestBriefing?.summary || 'Tutti i subagenti sincronizzati e operativi in background.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0 self-end md:self-auto text-xs text-indigo-300 hover:text-white font-semibold bg-white/10 hover:bg-white/15 px-3 py-1.5 rounded-lg border border-white/10 transition-colors">
+            <span>Cockpit Super Agente</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </div>
+        </div>
+      )}
 
       {/* 4 Summary Stat Cards (Soft Pastel) */}
       <div className={`grid gap-3 ${showExpenses ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3'}`}>

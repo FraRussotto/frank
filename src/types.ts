@@ -122,3 +122,65 @@ export interface AgentWorkerStatus {
   isProcessing: boolean;
   currentThreadSubject: string;
 }
+
+export type SubagentStatusType = 'idle' | 'running' | 'completed' | 'error';
+
+export interface SubagentAlert {
+  id: string;
+  level: 'info' | 'warning' | 'urgent';
+  title: string;
+  message: string;
+  timestamp: string;
+}
+
+export interface SubagentMeta {
+  id: string;
+  name: string;
+  department: string;
+  icon: string;
+  description: string;
+  status: SubagentStatusType;
+  lastRunAt: string | null;
+  stats: Record<string, any>;
+  alerts: SubagentAlert[];
+}
+
+export interface PriorityAction {
+  id: string;
+  urgency: 'alta' | 'media' | 'bassa';
+  department: string;
+  title: string;
+  description: string;
+  source: string;
+  deadline?: string;
+  linkTab?: 'email-calendar' | 'expenses' | 'docs-rag';
+}
+
+export interface SuperAgentBriefing {
+  id: string;
+  generatedAt: string;
+  date: string;
+  headline: string;
+  summary: string;
+  priorityActions: PriorityAction[];
+  crossDomainInsights: string[];
+  stats: {
+    activeEmailTasks: number;
+    threadsWithAction: number;
+    upcomingMeetings: number;
+    unpaidExpensesAmount: number;
+    unpaidExpensesCount: number;
+    indexedDocsCount: number;
+  };
+}
+
+export interface SuperAgentStatus {
+  name: string;
+  role: string;
+  version: string;
+  isOrchestrating: boolean;
+  lastOrchestrationAt: string | null;
+  subagents: SubagentMeta[];
+  latestBriefing: SuperAgentBriefing | null;
+}
+

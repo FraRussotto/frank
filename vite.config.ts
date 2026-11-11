@@ -4,6 +4,7 @@ import { exec } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import zlib from 'node:zlib';
 import { autonomousAgent, getAllAnalysesMap, analyzeThreadAutonomous } from './server/autonomousAgent';
+import { superAgent } from './server/orchestrator/superAgent';
 
 const DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
 const LARAVEL_DIR = '/Users/fra_russo/email-ai-agent';
@@ -49,8 +50,9 @@ function emailAgentPlugin() {
   return {
     name: 'email-agent-api',
     configureServer(server: any) {
-      // Avvia l'Agente Autonomo di Frank in background
+      // Avvia l'Agente Autonomo e il Super Agente Coordinatore di Frank in background
       autonomousAgent.start();
+      superAgent.startHeartbeat(60 * 1000);
 
       // Polling automatico in background ogni 5 minuti a partire da 1 novembre
       let isBackgroundPolling = false;
@@ -345,6 +347,7 @@ function emailAgentPlugin() {
               threads,
               agentTasks,
               agentStatus: autonomousAgent.getStatus(),
+              superAgentStatus: await superAgent.getStatus(),
               totalPending,
               totalDone,
               upcomingEvents: upcomingEvents.map(e => formatEvent(e, false)),
@@ -483,6 +486,81 @@ function emailAgentPlugin() {
               res.end(JSON.stringify({ error: err.message }));
             }
           });
+          return;
+        }
+
+        // GET /api/super-agent/status (Stato Super Agente e Roster Subagenti)
+        if (req.url === '/api/super-agent/status' && req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
+          try {
+            const status = await superAgent.getStatus();
+            res.end(JSON.stringify({ success: true, status }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: err.message }));
+          }
+          return;
+        }
+
+        // GET /api/super-agent/briefing (Briefing Esecutivo Multi-Dominio)
+        if (req.url === '/api/super-agent/briefing' && req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
+          try {
+            let briefing = superAgent.getLatestBriefing();
+            if (!briefing) {
+              briefing = await superAgent.generateExecutiveBriefing();
+            }
+            res.end(JSON.stringify({ success: true, briefing }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: err.message }));
+          }
+          return;
+        }
+
+        // POST /api/super-agent/run-all (Orchestrazione coordinata di tutti i subagenti)
+        if (req.url === '/api/super-agent/run-all' && req.method === 'POST') {
+          res.setHeader('Content-Type', 'application/json');
+          try {
+            const result = await superAgent.orchestrateAll();
+            const status = await superAgent.getStatus();
+            res.end(JSON.stringify({ success: true, result, status }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: err.message }));
+          }
+          return;
+        }
+
+        // POST /api/super-agent/run (Esecuzione singolo subagente)
+        if (req.url === '/api/super-agent/run' && req.method === 'POST') {
+          let bodyStr = '';
+          req.on('data', (chunk: any) => { bodyStr += chunk; });
+          req.on('end', async () => {
+            res.setHeader('Content-Type', 'application/json');
+            try {
+              const { subagentId } = JSON.parse(bodyStr || '{}');
+              const result = await superAgent.runSubagent(subagentId);
+              const status = await superAgent.getStatus();
+              res.end(JSON.stringify({ success: true, result, status }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+
+        // POST /api/super-agent/briefing/generate (Forza rigenerazione briefing esecutivo)
+        if (req.url === '/api/super-agent/briefing/generate' && req.method === 'POST') {
+          res.setHeader('Content-Type', 'application/json');
+          try {
+            const briefing = await superAgent.generateExecutiveBriefing();
+            res.end(JSON.stringify({ success: true, briefing }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: err.message }));
+          }
           return;
         }
 

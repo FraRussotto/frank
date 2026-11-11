@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   LayoutDashboard,
+  Brain,
   CreditCard,
   MailCheck,
   FileText,
@@ -10,8 +11,8 @@ import {
 import { AppSettings } from '../types';
 
 interface FlatNavbarProps {
-  activeTab: 'overview' | 'expenses' | 'email-calendar' | 'docs-rag';
-  onTabChange: (tab: 'overview' | 'expenses' | 'email-calendar' | 'docs-rag') => void;
+  activeTab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag';
+  onTabChange: (tab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag') => void;
   onOpenSettings: () => void;
   onSyncAll: () => void;
   isSyncing: boolean;
@@ -64,6 +65,22 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
             >
               <LayoutDashboard className="w-3.5 h-3.5 text-slate-500" />
               <span>Panoramica</span>
+            </button>
+
+            {/* Super Agente Tab */}
+            <button
+              onClick={() => onTabChange('super-agent')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                activeTab === 'super-agent'
+                  ? 'bg-indigo-50 text-indigo-900 border border-indigo-200/80 font-semibold shadow-2xs'
+                  : 'text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50/50'
+              }`}
+            >
+              <Brain className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Super Agente</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-700 font-bold uppercase tracking-tight">
+                Core
+              </span>
             </button>
 
             {showExpenses && (
@@ -148,6 +165,7 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
         <div className="md:hidden flex items-center space-x-1 overflow-x-auto py-2 border-t border-slate-100">
           {[
             { id: 'overview', label: 'Panoramica', icon: LayoutDashboard },
+            { id: 'super-agent', label: 'Super Agente', icon: Brain },
             ...(showExpenses ? [{ id: 'expenses', label: 'Spese', icon: CreditCard }] : []),
             { id: 'email-calendar', label: 'Email & Cal', icon: MailCheck },
             { id: 'docs-rag', label: 'Doc & RAG', icon: FileText },
