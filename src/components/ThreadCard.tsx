@@ -223,130 +223,94 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({
           : 'bg-white border-slate-200/80 hover:border-slate-300'
       }`}
     >
-      {/* Header: Badges & Master Action Buttons */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          
-          {/* Badge row */}
-          <div className="mb-2 flex flex-wrap items-center gap-1.5">
-            {/* Status dell'Agente Frank Autonomo */}
-            {agentAnalysis ? (
-              <span
-                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
-                  agentAnalysis.status === 'action_required'
-                    ? 'bg-rose-50 text-rose-700 border-rose-200'
-                    : agentAnalysis.status === 'waiting_others'
-                    ? 'bg-sky-50 text-sky-700 border-sky-200'
-                    : agentAnalysis.status === 'resolved'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-slate-100 text-slate-600 border-slate-200'
-                }`}
-              >
-                {agentAnalysis.status === 'action_required' && <AlertCircle className="w-3 h-3 text-rose-500" />}
-                {agentAnalysis.status === 'waiting_others' && <Clock className="w-3 h-3 text-sky-500" />}
-                {agentAnalysis.status === 'resolved' && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
-                <span>{agentAnalysis.statusLabel}</span>
-                {agentAnalysis.activeTasks && agentAnalysis.activeTasks.length > 0 && (
-                  <span className="ml-0.5 px-1 rounded-full bg-rose-200/80 text-rose-800 text-[10px]">
-                    {agentAnalysis.activeTasks.length}
-                  </span>
-                )}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-medium border border-indigo-200/60">
-                <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />
-                <span>Analisi in corso...</span>
-              </span>
-            )}
-
-            {urgency && (
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${urgency.className}`}>
-                {urgency.label}
-              </span>
-            )}
-
-            {deadline && (
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${deadline.className}`}>
-                <Clock className="w-3 h-3 mr-1 text-current opacity-70" />
-                {deadline.text}
-              </span>
-            )}
-
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium border border-slate-200/60">
-              <Mail className="w-3 h-3 text-slate-400" />
-              {thread.email_count} {thread.email_count === 1 ? 'email' : 'email'}
-            </span>
-
-            {thread.has_requests && (
-              <span
-                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                  allDone
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                    : 'bg-slate-100 text-slate-600 border-slate-200/60'
-                }`}
-              >
-                {allDone ? (
-                  <>
-                    <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
-                    Completato
-                  </>
-                ) : (
-                  `${doneCount}/${totalCount} completati`
-                )}
-              </span>
-            )}
-
-            {thread.is_hidden && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-200/80 text-slate-700 text-[11px] font-medium">
-                <EyeOff className="w-3 h-3 text-slate-500" />
-                Nascosto
-              </span>
-            )}
-          </div>
-
-          {/* Subject */}
-          <h3 className={`text-base font-bold leading-snug tracking-tight transition-colors ${allDone ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-            {thread.subject || 'Nessun oggetto'}
-          </h3>
-
-          {/* Senders */}
-          {sendersLabel && (
-            <p className="mt-1 flex items-center gap-1.5 truncate text-xs text-slate-500">
-              <span className="w-1.5 h-1.5 rounded-full bg-sky-400 inline-block shrink-0" />
-              <span className="truncate font-medium text-slate-600">{sendersLabel}</span>
-              {thread.last_at && (
-                <span className="text-slate-400">· {relativeTime(thread.last_at)}</span>
+      {/* 1. Top Header Row: Badges on left, Actions Toolbar on right */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100">
+        {/* Badges Row */}
+        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+          {/* Status dell'Agente Frank Autonomo */}
+          {agentAnalysis ? (
+            <span
+              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border whitespace-nowrap shrink-0 ${
+                agentAnalysis.status === "action_required"
+                  ? "bg-rose-50 text-rose-700 border-rose-200"
+                  : agentAnalysis.status === "waiting_others"
+                  ? "bg-sky-50 text-sky-700 border-sky-200"
+                  : agentAnalysis.status === "resolved"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : "bg-slate-100 text-slate-600 border-slate-200"
+              }`}
+            >
+              {agentAnalysis.status === "action_required" && <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />}
+              {agentAnalysis.status === "waiting_others" && <Clock className="w-3 h-3 text-sky-500 shrink-0" />}
+              {agentAnalysis.status === "resolved" && <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />}
+              <span>{agentAnalysis.statusLabel}</span>
+              {agentAnalysis.activeTasks && agentAnalysis.activeTasks.length > 0 && (
+                <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-rose-200/80 text-rose-800 text-[10px] font-bold">
+                  {agentAnalysis.activeTasks.length}
+                </span>
               )}
-            </p>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-medium border border-indigo-200/60 whitespace-nowrap shrink-0">
+              <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />
+              <span>Analisi in corso...</span>
+            </span>
           )}
 
-          {/* Sintesi & Prossimo Passo Frank */}
-          {agentAnalysis?.summary && (
-            <div className="mt-2.5 rounded-xl bg-slate-50/80 border border-slate-200/80 p-3 space-y-1.5">
-              <p className="text-xs text-slate-800 leading-relaxed font-normal">
-                <span className="font-bold text-indigo-700">Analisi Frank: </span>
-                {agentAnalysis.summary}
-              </p>
-              {agentAnalysis.suggestedNextStep && (
-                <div className="pt-1.5 border-t border-slate-200/50 flex items-start gap-1.5 text-xs text-indigo-950 font-medium">
-                  <ArrowRight className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
-                  <span><strong className="text-indigo-900">Prossimo passo:</strong> {agentAnalysis.suggestedNextStep}</span>
-                </div>
+          {urgency && (
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap shrink-0 ${urgency.className}`}>
+              {urgency.label}
+            </span>
+          )}
+
+          {deadline && (
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap shrink-0 ${deadline.className}`}>
+              <Clock className="w-3 h-3 mr-1 text-current opacity-70" />
+              {deadline.text}
+            </span>
+          )}
+
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-medium border border-slate-200/60 whitespace-nowrap shrink-0">
+            <Mail className="w-3 h-3 text-slate-400" />
+            {thread.email_count} email
+          </span>
+
+          {thread.has_requests && (
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap shrink-0 ${
+                allDone
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  : "bg-slate-100 text-slate-600 border-slate-200/60"
+              }`}
+            >
+              {allDone ? (
+                <>
+                  <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
+                  Completato
+                </>
+              ) : (
+                `${doneCount}/${totalCount} completati`
               )}
-            </div>
+            </span>
+          )}
+
+          {thread.is_hidden && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-200/80 text-slate-700 text-[11px] font-medium whitespace-nowrap shrink-0">
+              <EyeOff className="w-3 h-3 text-slate-500" />
+              Nascosto
+            </span>
           )}
         </div>
 
-        {/* Actions Toolbar: Hide/Unhide, AI Draft & Master Done Button */}
-        <div className="flex flex-wrap items-center gap-1.5 shrink-0 pt-1 sm:pt-0">
-          
+        {/* Actions Toolbar */}
+        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
           {/* Hide / Unhide Button */}
           {onToggleHideThread && (
             <button
               type="button"
               onClick={() => onToggleHideThread(thread.thread_id, !thread.is_hidden)}
-              title={thread.is_hidden ? 'Ripristina thread' : 'Nascondi thread'}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200/80 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold shadow-2xs transition-colors"
+              title={thread.is_hidden ? "Ripristina thread" : "Nascondi thread"}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200/80 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold shadow-2xs transition-colors whitespace-nowrap"
             >
               {thread.is_hidden ? (
                 <>
@@ -362,44 +326,12 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({
             </button>
           )}
 
-          {/* Autonomous Thread Agent Button */}
-          <button
-            type="button"
-            onClick={() => fetchAgentAnalysis(false)}
-            title="Analisi autonoma dell'intero thread con l'Agente AI"
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold shadow-2xs transition-colors ${
-              showAgent
-                ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs'
-                : agentAnalysis
-                ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
-                : 'bg-white hover:bg-indigo-50 text-indigo-700 border-indigo-200/80'
-            }`}
-          >
-            {isAgentLoading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
-            ) : (
-              <Brain className={`w-3.5 h-3.5 ${showAgent ? 'text-white' : 'text-indigo-600'}`} />
-            )}
-            <span>Agente Thread</span>
-            {agentAnalysis && !showAgent && (
-              <span className={`w-1.5 h-1.5 rounded-full ${
-                agentAnalysis.status === 'action_required'
-                  ? 'bg-rose-500'
-                  : agentAnalysis.status === 'waiting_others'
-                  ? 'bg-sky-500'
-                  : agentAnalysis.status === 'resolved'
-                  ? 'bg-emerald-500'
-                  : 'bg-slate-400'
-              }`} />
-            )}
-          </button>
-
           {/* AI Draft Reply Button */}
           <button
             type="button"
             onClick={() => onOpenAIDraft(thread)}
             title="Genera una bozza di risposta rapida con l'AI"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-50/80 hover:bg-sky-100 text-sky-700 border border-sky-200/80 text-xs font-bold shadow-2xs transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-50/80 hover:bg-sky-100 text-sky-700 border border-sky-200/80 text-xs font-bold shadow-2xs transition-colors whitespace-nowrap"
           >
             <Sparkles className="w-3.5 h-3.5 text-sky-600" />
             <span>Rispondi con AI</span>
@@ -411,7 +343,7 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({
               <button
                 type="button"
                 onClick={handleToggleMasterDone}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold shadow-2xs transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold shadow-2xs transition-colors whitespace-nowrap"
               >
                 <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
                 <span>Riapri thread</span>
@@ -420,7 +352,7 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({
               <button
                 type="button"
                 onClick={handleToggleMasterDone}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-colors whitespace-nowrap"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>Segna come completato</span>
@@ -429,15 +361,48 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({
               <button
                 disabled
                 title="Spunta tutti i task per abilitare il completamento del thread"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200/80 bg-slate-100/70 text-slate-400 text-xs font-medium cursor-not-allowed select-none"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200/80 bg-slate-100/70 text-slate-400 text-xs font-medium cursor-not-allowed select-none whitespace-nowrap"
               >
                 <Check className="w-3.5 h-3.5 opacity-40" />
-                <span>Completato ({doneCount}/{totalCount})</span>
+                <span>Completato (${doneCount}/${totalCount})</span>
               </button>
             )
           )}
         </div>
       </div>
+
+      {/* 2. Full Width Content: Subject & Senders */}
+      <div className="mt-3">
+        <h3 className={`text-base font-bold leading-snug tracking-tight transition-colors ${allDone ? "text-slate-400 line-through" : "text-slate-900"}`}>
+          {thread.subject || "Nessun oggetto"}
+        </h3>
+
+        {sendersLabel && (
+          <p className="mt-1 flex items-center gap-1.5 truncate text-xs text-slate-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 inline-block shrink-0" />
+            <span className="truncate font-medium text-slate-600">{sendersLabel}</span>
+            {thread.last_at && (
+              <span className="text-slate-400">· {relativeTime(thread.last_at)}</span>
+            )}
+          </p>
+        )}
+      </div>
+
+      {/* 3. Sintesi Autonoma Frank (Full width!) */}
+      {agentAnalysis?.summary && (
+        <div className="mt-3 rounded-xl bg-slate-50/80 border border-slate-200/70 p-3 space-y-1.5">
+          <p className="text-xs text-slate-800 leading-relaxed font-normal">
+            <span className="font-bold text-indigo-700">Analisi Frank: </span>
+            {agentAnalysis.summary}
+          </p>
+          {agentAnalysis.suggestedNextStep && (
+            <div className="pt-1.5 border-t border-slate-200/50 flex items-start gap-1.5 text-xs text-indigo-950 font-medium">
+              <ArrowRight className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
+              <span><strong className="text-indigo-900">Prossimo passo:</strong> {agentAnalysis.suggestedNextStep}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Autonomous Thread Agent Panel */}
       {showAgent && (
