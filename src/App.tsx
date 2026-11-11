@@ -213,6 +213,19 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
+    // Sincronizza istantaneamente con il Subagente Spese & Finanze nel backend
+    fetch('/api/expenses/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expenses })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status) {
+          setSuperAgentStatus(data.status);
+        }
+      })
+      .catch(err => console.warn('Errore sync spese verso subagente:', err));
   }, [expenses]);
 
   useEffect(() => {

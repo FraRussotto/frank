@@ -5,6 +5,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import zlib from 'node:zlib';
 import { autonomousAgent, getAllAnalysesMap, analyzeThreadAutonomous } from './server/autonomousAgent';
 import { superAgent } from './server/orchestrator/superAgent';
+import { FinanceSubagent } from './server/orchestrator/subagents/financeSubagent';
 
 const DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
 const LARAVEL_DIR = '/Users/fra_russo/email-ai-agent';
@@ -561,6 +562,53 @@ function emailAgentPlugin() {
             res.statusCode = 500;
             res.end(JSON.stringify({ error: err.message }));
           }
+          return;
+        }
+
+        // GET /api/expenses (Restituisce le spese salvate in Frank DB)
+        if (req.url === '/api/expenses' && req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
+          try {
+            const { DatabaseSync } = await import('node:sqlite');
+            const frankDb = new DatabaseSync('/Users/fra_russo/Frank/database/frank_agent.sqlite', { readOnly: true });
+            const rows = frankDb.prepare('SELECT * FROM fixed_expenses ORDER BY due_day ASC').all() as any[];
+            frankDb.close();
+            const expenses = rows.map(r => ({
+              id: r.id,
+              name: r.name,
+              amount: r.amount,
+              category: r.category,
+              frequency: r.frequency,
+              dueDay: r.due_day,
+              isPaid: Boolean(r.is_paid),
+              notes: r.notes || ''
+            }));
+            res.end(JSON.stringify({ success: true, expenses }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: err.message }));
+          }
+          return;
+        }
+
+        // POST /api/expenses/sync (Sincronizza le spese reali definite dall'utente nel frontend verso il DB del Subagente)
+        if (req.url === '/api/expenses/sync' && req.method === 'POST') {
+          let bodyStr = '';
+          req.on('data', (chunk: any) => { bodyStr += chunk; });
+          req.on('end', async () => {
+            res.setHeader('Content-Type', 'application/json');
+            try {
+              const { expenses } = JSON.parse(bodyStr || '{}');
+              FinanceSubagent.syncExpenses(expenses || []);
+              // Rigenera immediatamente il briefing esecutivo con i dati reali dell'utente
+              await superAgent.generateExecutiveBriefing();
+              const status = await superAgent.getStatus();
+              res.end(JSON.stringify({ success: true, status }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
           return;
         }
 

@@ -71,3 +71,4 @@ export interface ISubagent {
   runScan(force?: boolean): Promise<{ success: boolean; message: string; details?: any }>;
   query(intent: string, payload?: any): Promise<any>;
 }
+

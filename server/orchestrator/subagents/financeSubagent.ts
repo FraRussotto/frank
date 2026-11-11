@@ -33,27 +33,37 @@ export class FinanceSubagent implements ISubagent {
           notes TEXT
         );
       `);
-
-      // Seed se vuoto
-      const countRow = db.prepare('SELECT COUNT(*) as cnt FROM fixed_expenses').get() as any;
-      if (countRow && countRow.cnt === 0) {
-        const seed = [
-          ['exp-1', 'Affitto / Mutuo Appartamento', 850, 'Casa', 'Mensile', 1, 1, 'Bonifico automatico inizio mese'],
-          ['exp-2', 'Bolletta Luce & Gas', 145, 'Utenze', 'Bimestrale', 15, 0, 'Scadenza metà mese'],
-          ['exp-3', 'Connessione Fibra Internet', 29.90, 'Utenze', 'Mensile', 10, 1, 'Addebito diretto SDD'],
-          ['exp-4', 'Tool AI & Cloud Subscriptions', 40, 'Lavoro', 'Mensile', 20, 0, 'Gemini Advanced + API Serverless'],
-          ['exp-5', 'Assicurazione Auto & Moto', 65, 'Trasporti', 'Mensile', 27, 0, 'Rata mensile Zurich'],
-          ['exp-6', 'Abbonamento Palestra', 55, 'Altro', 'Mensile', 5, 1, 'Accesso Open']
-        ];
-        const insertStmt = db.prepare(`
-          INSERT INTO fixed_expenses (id, name, amount, category, frequency, due_day, is_paid, notes)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-        seed.forEach(item => insertStmt.run(...item));
-      }
       db.close();
     } catch (e) {
       console.warn('FinanceSubagent ensureTables error:', e);
+    }
+  }
+
+  public static syncExpenses(expensesList: any[]): void {
+    try {
+      const db = new DatabaseSync(FRANK_DB_PATH);
+      db.exec('DELETE FROM fixed_expenses');
+      if (Array.isArray(expensesList) && expensesList.length > 0) {
+        const stmt = db.prepare(`
+          INSERT INTO fixed_expenses (id, name, amount, category, frequency, due_day, is_paid, notes)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const e of expensesList) {
+          stmt.run(
+            String(e.id),
+            String(e.name || ''),
+            Number(e.amount || 0),
+            String(e.category || 'Altro'),
+            String(e.frequency || 'Mensile'),
+            Number(e.dueDay || e.due_day || 1),
+            e.isPaid || e.is_paid ? 1 : 0,
+            String(e.notes || '')
+          );
+        }
+      }
+      db.close();
+    } catch (e) {
+      console.error('Error syncing expenses to SQLite:', e);
     }
   }
 
@@ -132,3 +142,4 @@ export class FinanceSubagent implements ISubagent {
     return { expenses };
   }
 }
+
