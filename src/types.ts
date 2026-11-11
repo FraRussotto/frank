@@ -84,3 +84,32 @@ export interface EcosystemContext {
   documents: StoredDocument[];
   todayStr?: string;
 }
+
+export interface ThreadAgentTask {
+  summary: string;
+  urgency: 'high' | 'medium' | 'low';
+  reason: string;
+}
+
+export interface ThreadAgentResolvedTask {
+  summary: string;
+  resolvedBy: string;
+  resolvedNote: string;
+}
+
+export interface ThreadAgentAnalysis {
+  threadId: string;
+  status: 'action_required' | 'waiting_others' | 'resolved' | 'informative';
+  statusLabel: string;
+  summary: string;
+  myActionRequired: boolean;
+  activeTasks: ThreadAgentTask[];
+  resolvedTasks: ThreadAgentResolvedTask[];
+  suggestedNextStep: string;
+  draftReply?: {
+    to: string;
+    subject: string;
+    body: string;
+  };
+  analyzedAt?: string;
+}

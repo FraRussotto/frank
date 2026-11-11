@@ -1,5 +1,22 @@
 import React, { useState } from 'react';
-import { Sparkles, Check, Clock, Mail, ExternalLink, EyeOff, Eye, RotateCcw, CheckCircle2 } from 'lucide-react';
+import {
+  Sparkles,
+  Check,
+  Clock,
+  Mail,
+  ExternalLink,
+  EyeOff,
+  Eye,
+  RotateCcw,
+  CheckCircle2,
+  Brain,
+  Loader2,
+  Copy,
+  ArrowRight,
+  ShieldCheck,
+  AlertCircle
+} from 'lucide-react';
+import { ThreadAgentAnalysis } from '../types';
 
 export interface ThreadTaskRequest {
   id: number;
@@ -124,6 +141,46 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [expandedEmailId, setExpandedEmailId] = useState<number | null>(null);
+
+  // Thread Agent state
+  const [showAgent, setShowAgent] = useState(false);
+  const [agentAnalysis, setAgentAnalysis] = useState<ThreadAgentAnalysis | null>(null);
+  const [isAgentLoading, setIsAgentLoading] = useState(false);
+  const [agentError, setAgentError] = useState<string | null>(null);
+  const [copiedDraft, setCopiedDraft] = useState(false);
+
+  const fetchAgentAnalysis = async (force = false) => {
+    if (agentAnalysis && !force) {
+      setShowAgent(prev => !prev);
+      return;
+    }
+    setIsAgentLoading(true);
+    setAgentError(null);
+    setShowAgent(true);
+    try {
+      const res = await fetch('/api/thread-agent/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ threadId: thread.thread_id, force })
+      });
+      const data = await res.json();
+      if (data.success && data.analysis) {
+        setAgentAnalysis(data.analysis);
+      } else {
+        setAgentError(data.error || 'Impossibile analizzare il thread.');
+      }
+    } catch (err: any) {
+      setAgentError(err.message || 'Errore di connessione con l\'Agente.');
+    } finally {
+      setIsAgentLoading(false);
+    }
+  };
+
+  const handleCopyDraft = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedDraft(true);
+    setTimeout(() => setCopiedDraft(false), 2000);
+  };
 
   const requests = thread.requests || [];
   const doneCount = requests.filter(r => r.status === 'done').length;
@@ -251,6 +308,38 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({
             </button>
           )}
 
+          {/* Autonomous Thread Agent Button */}
+          <button
+            type="button"
+            onClick={() => fetchAgentAnalysis(false)}
+            title="Analisi autonoma dell'intero thread con l'Agente AI"
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold shadow-2xs transition-colors ${
+              showAgent
+                ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs'
+                : agentAnalysis
+                ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+                : 'bg-white hover:bg-indigo-50 text-indigo-700 border-indigo-200/80'
+            }`}
+          >
+            {isAgentLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+            ) : (
+              <Brain className={`w-3.5 h-3.5 ${showAgent ? 'text-white' : 'text-indigo-600'}`} />
+            )}
+            <span>Agente Thread</span>
+            {agentAnalysis && !showAgent && (
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                agentAnalysis.status === 'action_required'
+                  ? 'bg-rose-500'
+                  : agentAnalysis.status === 'waiting_others'
+                  ? 'bg-sky-500'
+                  : agentAnalysis.status === 'resolved'
+                  ? 'bg-emerald-500'
+                  : 'bg-slate-400'
+              }`} />
+            )}
+          </button>
+
           {/* AI Draft Reply Button */}
           <button
             type="button"
@@ -295,6 +384,192 @@ export const ThreadCard: React.FC<ThreadCardProps> = ({
           )}
         </div>
       </div>
+
+      {/* Autonomous Thread Agent Panel */}
+      {showAgent && (
+        <div className="mt-4 rounded-xl border border-indigo-200/90 bg-gradient-to-b from-indigo-50/40 via-white to-slate-50/30 p-4 shadow-2xs transition-all">
+          <div className="flex items-center justify-between pb-3 border-b border-indigo-100/80">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-2xs">
+                <Brain className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  Agente Autonomo Frank
+                  <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-100/80 px-1.5 py-0.5 rounded-md">
+                    Sonar Context Engine
+                  </span>
+                </h4>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {agentAnalysis && (
+                <span
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                    agentAnalysis.status === 'action_required'
+                      ? 'bg-rose-50 text-rose-700 border-rose-200'
+                      : agentAnalysis.status === 'waiting_others'
+                      ? 'bg-sky-50 text-sky-700 border-sky-200'
+                      : agentAnalysis.status === 'resolved'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-slate-100 text-slate-600 border-slate-200'
+                  }`}
+                >
+                  {agentAnalysis.status === 'action_required' && <AlertCircle className="w-3 h-3 text-rose-500" />}
+                  {agentAnalysis.status === 'waiting_others' && <Clock className="w-3 h-3 text-sky-500" />}
+                  {agentAnalysis.status === 'resolved' && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                  {agentAnalysis.statusLabel}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => fetchAgentAnalysis(true)}
+                disabled={isAgentLoading}
+                title="Rianalizza l'intero thread da zero"
+                className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-white border border-transparent hover:border-indigo-100 transition-colors"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${isAgentLoading ? 'animate-spin text-indigo-600' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          {isAgentLoading && (
+            <div className="py-6 flex flex-col items-center justify-center gap-2 text-indigo-600">
+              <Loader2 className="w-6 h-6 animate-spin" />
+              <p className="text-xs font-semibold text-slate-600">Analisi multi-messaggio del thread in corso...</p>
+            </div>
+          )}
+
+          {agentError && (
+            <div className="mt-3 p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700">
+              {agentError}
+            </div>
+          )}
+
+          {agentAnalysis && !isAgentLoading && (
+            <div className="mt-3 space-y-3.5">
+              {/* Quadro della situazione */}
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  Quadro della situazione
+                </p>
+                <p className="text-xs text-slate-800 leading-relaxed font-medium bg-white/90 p-3 rounded-lg border border-slate-200/80">
+                  {agentAnalysis.summary}
+                </p>
+              </div>
+
+              {/* Prossimo passo suggerito */}
+              {agentAnalysis.suggestedNextStep && (
+                <div className="p-3 rounded-lg bg-indigo-50/80 border border-indigo-200/70 flex items-start gap-2.5">
+                  <ArrowRight className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[11px] font-bold text-indigo-900 uppercase tracking-wide">
+                      Prossimo passo suggerito
+                    </p>
+                    <p className="text-xs text-indigo-950 mt-0.5 font-medium leading-relaxed">
+                      {agentAnalysis.suggestedNextStep}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Task Grid: Cosa tocca a te vs Già risolto */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Active Tasks */}
+                <div className="rounded-lg border border-slate-200/80 bg-white/90 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-rose-800 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
+                      Cosa tocca a te ({agentAnalysis.activeTasks?.length || 0})
+                    </span>
+                  </div>
+                  {agentAnalysis.activeTasks && agentAnalysis.activeTasks.length > 0 ? (
+                    <ul className="space-y-2">
+                      {agentAnalysis.activeTasks.map((t, i) => (
+                        <li key={i} className="text-xs p-2 rounded-md bg-rose-50/50 border border-rose-100">
+                          <p className="font-semibold text-slate-900">{t.summary}</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">{t.reason}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic py-1">
+                      Nessuna azione operativa richiesta a te.
+                    </p>
+                  )}
+                </div>
+
+                {/* Resolved Tasks */}
+                <div className="rounded-lg border border-slate-200/80 bg-white/90 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 inline-block" />
+                      Già risolto nel thread ({agentAnalysis.resolvedTasks?.length || 0})
+                    </span>
+                  </div>
+                  {agentAnalysis.resolvedTasks && agentAnalysis.resolvedTasks.length > 0 ? (
+                    <ul className="space-y-2">
+                      {agentAnalysis.resolvedTasks.map((t, i) => (
+                        <li key={i} className="text-xs p-2 rounded-md bg-emerald-50/50 border border-emerald-100">
+                          <p className="font-semibold text-slate-800 line-through decoration-emerald-600/70">{t.summary}</p>
+                          <div className="flex items-center justify-between gap-1 text-[11px] text-emerald-700 mt-1">
+                            <span className="font-medium">Risolto da: {t.resolvedBy}</span>
+                          </div>
+                          {t.resolvedNote && (
+                            <p className="text-[11px] text-slate-500 mt-0.5">{t.resolvedNote}</p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic py-1">
+                      Nessun task precedente marcato come risolto.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Draft Reply se presente */}
+              {agentAnalysis.draftReply?.body && (
+                <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                      Bozza pronta per la risposta
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyDraft(agentAnalysis.draftReply?.body || '')}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                    >
+                      {copiedDraft ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Copiata!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Copia bozza</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  {agentAnalysis.draftReply.to && (
+                    <p className="text-[11px] text-slate-500">
+                      A: <span className="font-semibold text-slate-700">{agentAnalysis.draftReply.to}</span>
+                    </p>
+                  )}
+                  <p className="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-md whitespace-pre-wrap font-sans border border-slate-100">
+                    {agentAnalysis.draftReply.body}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Cose Richieste con Singole Checkbox */}
       {thread.has_requests ? (

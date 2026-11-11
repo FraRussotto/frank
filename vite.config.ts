@@ -1,11 +1,23 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { exec } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import zlib from 'node:zlib';
 
 const DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
 const LARAVEL_DIR = '/Users/fra_russo/email-ai-agent';
+const LARAVEL_ENV_PATH = '/Users/fra_russo/email-ai-agent/.env';
+
+function getAiApiKey(): string {
+  if (existsSync(LARAVEL_ENV_PATH)) {
+    const content = readFileSync(LARAVEL_ENV_PATH, 'utf-8');
+    const m = content.match(/OPENAI_API_KEY=(.+)/);
+    if (m && m[1]) return m[1].trim();
+  }
+  return process.env.OPENAI_API_KEY || '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';
+}
+
+const threadAgentCache = new Map<string, any>();
 
 function decompressString(val: string | null): string {
   if (!val) return '';
@@ -348,6 +360,156 @@ function emailAgentPlugin() {
               if (db) {
                 try { db.close(); } catch {}
               }
+            }
+          });
+          return;
+        }
+
+        // GET /api/thread-agent/cache (Restituisce tutte le analisi già effettuate)
+        if (req.url === '/api/thread-agent/cache' && req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
+          const cacheObj: Record<string, any> = {};
+          threadAgentCache.forEach((val, key) => { cacheObj[key] = val; });
+          res.end(JSON.stringify({ success: true, cache: cacheObj }));
+          return;
+        }
+
+        // POST /api/thread-agent/analyze (Agente autonomo di comprensione multi-turno del thread)
+        if (req.url === '/api/thread-agent/analyze' && req.method === 'POST') {
+          let bodyStr = '';
+          req.on('data', (chunk: any) => { bodyStr += chunk; });
+          req.on('end', async () => {
+            res.setHeader('Content-Type', 'application/json');
+            try {
+              const { threadId, forceRefresh } = JSON.parse(bodyStr || '{}');
+              if (!threadId) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'threadId obbligatorio' }));
+                return;
+              }
+
+              if (!forceRefresh && threadAgentCache.has(threadId)) {
+                res.end(JSON.stringify({ success: true, analysis: threadAgentCache.get(threadId) }));
+                return;
+              }
+
+              const { DatabaseSync } = await import('node:sqlite');
+              const db = new DatabaseSync(DB_PATH, { readOnly: true });
+              let emails: any[] = [];
+              try {
+                emails = db.prepare(`
+                  SELECT id, google_message_id, sender, sender_email, subject, received_at, body_text, recipients
+                  FROM emails
+                  WHERE thread_id = ? AND source_type = 'email'
+                  ORDER BY received_at ASC
+                `).all(threadId) as any[];
+              } finally {
+                db.close();
+              }
+
+              if (emails.length === 0) {
+                res.statusCode = 404;
+                res.end(JSON.stringify({ error: 'Nessun messaggio trovato per questo thread' }));
+                return;
+              }
+
+              let conversation = '';
+              emails.forEach((em, idx) => {
+                let text = em.body_text || '';
+                if (text.startsWith('gz:')) {
+                  try {
+                    const buf = Buffer.from(text.slice(3), 'base64');
+                    text = zlib.inflateSync(buf).toString('utf-8');
+                  } catch {}
+                }
+                const toList = parseJsonSafe(em.recipients, {})?.to || [];
+                const toStr = toList.map((t: any) => t.name || t.email).filter(Boolean).join(', ');
+                conversation += `\n--- [Messaggio ${idx + 1} del ${em.received_at}] ---\nDa: ${em.sender} <${em.sender_email}>\nA: ${toStr || 'N/D'}\nOggetto: ${em.subject}\nTesto:\n${text.slice(0, 2000)}\n`;
+              });
+
+              const systemPrompt = `Sei Frank Thread Agent, l'agente esecutivo autonomo per l'analisi intelligente di conversazioni email per Francesco Russotto (f.russotto@arteficegroup.com).
+Analizza l'INTERO THREAD CRONOLOGICO (dal primo all'ultimo messaggio) per comprendere lo stato attuale della discussione e stabilire in modo autonomo:
+1. STATO ATTUALE:
+   - "action_required": c'è una richiesta pendente, una domanda o un compito operativo non ancora risolto che spetta specificamente a Francesco.
+   - "waiting_others": Francesco (o un collega) ha già fatto l'ultima mossa o risposto, e il thread è in attesa di feedback/risposta da parte del cliente o di altri.
+   - "resolved": il tema del thread si è concluso con successo, è stato confermato risolto o non richiede ulteriori azioni.
+   - "informative": notifica automatica, ricevuta o email informativa in cui Francesco era solo in copia senza compiti.
+
+2. COMPITI ATTIVI vs RISOLTI:
+   - Identifica le richieste formulate nel corso del thread.
+   - Se Francesco (o un collega) ha già soddisfatto la richiesta nei messaggi successivi (es. ha inviato il file, confermato la modifica, fatto il deploy), inseriscila in "resolvedTasks" spiegando chi e quando l'ha risolta.
+   - Elenca in "activeTasks" SOLO ED ESCLUSIVAMENTE ciò che resta DAVVERO DA FARE per Francesco.
+
+3. PROSSIMO PASSO SUGGERITO (suggestedNextStep):
+   - Una frase sintetica e pratica che consiglia cosa fare adesso.
+
+4. BOZZA DI RISPOSTA CONTESTUALE (draftReply):
+   - Se lo stato è "action_required", genera una bozza di risposta professionale, calibrata sul tono del thread, pronta all'invio.
+
+Rispondi RIGOROSAMENTE con JSON valido in questa struttura:
+{
+  "status": "action_required" | "waiting_others" | "resolved" | "informative",
+  "statusLabel": "Richiede tua azione" | "In attesa di altri" | "Risolto" | "Informativo",
+  "summary": "Sintesi stato attuale del thread (1-2 frasi)",
+  "myActionRequired": true | false,
+  "activeTasks": [
+    { "summary": "Descrizione compito", "urgency": "high" | "medium" | "low", "reason": "Motivazione" }
+  ],
+  "resolvedTasks": [
+    { "summary": "Compito risolto", "resolvedBy": "Chi l'ha risolto", "resolvedNote": "Dettaglio risoluzione" }
+  ],
+  "suggestedNextStep": "Azione consigliata",
+  "draftReply": { "to": "email o nome", "subject": "oggetto risposta", "body": "testo risposta" }
+}`;
+
+              const apiKey = getAiApiKey();
+              const aiRes = await fetch('https://api.perplexity.ai/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${apiKey}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  model: 'sonar',
+                  messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: `Ecco il thread completo da analizzare:\n${conversation.slice(0, 12000)}` }
+                  ],
+                  temperature: 0.1
+                })
+              });
+
+              if (!aiRes.ok) {
+                const errText = await aiRes.text();
+                throw new Error(`AI API error (${aiRes.status}): ${errText}`);
+              }
+
+              const aiData: any = await aiRes.json();
+              const rawContent = aiData.choices?.[0]?.message?.content || '{}';
+              let parsed: any = {};
+              try {
+                const match = rawContent.match(/```json\s*([\s\S]*?)\s*```/) || rawContent.match(/\{[\s\S]*\}/);
+                parsed = JSON.parse(match ? match[1] || match[0] : rawContent);
+              } catch {
+                parsed = {
+                  status: 'informative',
+                  statusLabel: 'Informativo',
+                  summary: rawContent.slice(0, 200),
+                  myActionRequired: false,
+                  activeTasks: [],
+                  resolvedTasks: [],
+                  suggestedNextStep: 'Nessuna azione richiesta'
+                };
+              }
+
+              parsed.threadId = threadId;
+              parsed.analyzedAt = new Date().toISOString();
+              threadAgentCache.set(threadId, parsed);
+
+              res.end(JSON.stringify({ success: true, analysis: parsed }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
             }
           });
           return;
