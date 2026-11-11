@@ -107,3 +107,4 @@ export async function parseDocumentBuffer(
     fileType: lower.endsWith('.md') ? 'md' : 'txt'
   };
 }
+

@@ -658,6 +658,74 @@ function emailAgentPlugin() {
           return;
         }
 
+        // POST /api/rag/ask (Motore AI unificato per Frank RAG & Chat: risposte sintetiche e precise)
+        if (req.url === '/api/rag/ask' && req.method === 'POST') {
+          let bodyStr = '';
+          req.on('data', (chunk: any) => { bodyStr += chunk; });
+          req.on('end', async () => {
+            res.setHeader('Content-Type', 'application/json');
+            try {
+              const { query, sources, ecosystem } = JSON.parse(bodyStr || '{}');
+              const apiKey = getAiApiKey();
+
+              const docsContext = Array.isArray(sources) && sources.length > 0
+                ? sources.map((s: any, idx: number) => `[FONTE ${idx + 1}: ${s.chunk?.documentTitle || s.documentTitle}]:\n${s.chunk?.content || s.content}`).join('\n\n')
+                : 'Nessun documento specifico corrispondente.';
+
+              const systemPrompt = `Sei Frank, l'assistente personale intelligente e operativo di Francesco Russotto nel suo Second Brain.
+Regole fondamentali per la risposta:
+1. Sii chiaro, diretto, sintetico e naturale.
+2. Rispondi ESATTAMENTE e SOLTANTO a ciò che ti è stato chiesto:
+   - Se l'utente chiede un dato specifico (es. numero di Partita IVA, codice fiscale, IBAN, indirizzo, data, orario, prezzo, importo), NON incollare l'indice, il sommario o l'intero testo del documento.
+   - Fornisci SUBITO l'informazione richiesta in evidenza (es. "La tua Partita IVA è: **14130860969**" oppure "Sede: **Via Carmelo Trasselli 27, Palermo**"), citando tra parentesi la fonte.
+3. Se l'utente chiede un riepilogo o spiegazione, usa elenchi puntati puliti e compatti senza prolissità o divagazioni.
+4. Usa formattazione Markdown elegante.`;
+
+              const userMessage = `DOMANDA DELL'UTENTE:
+"${query}"
+
+CONTESTO DOCUMENTI (RAG):
+${docsContext.slice(0, 12000)}
+
+DATI ECOSISTEMA:
+- Task email: ${ecosystem?.requests?.length || 0}
+- Eventi agenda: ${ecosystem?.events?.length || 0}
+- Spese fisse: ${ecosystem?.expenses?.length || 0}`;
+
+              const aiRes = await fetch('https://api.perplexity.ai/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${apiKey}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  model: 'sonar',
+                  messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userMessage }
+                  ],
+                  temperature: 0.1
+                })
+              });
+
+              if (aiRes.ok) {
+                const aiData = await aiRes.json();
+                const text = aiData.choices?.[0]?.message?.content;
+                if (text) {
+                  res.end(JSON.stringify({ success: true, text: text.trim(), model: 'Frank AI Engine (Sonar)' }));
+                  return;
+                }
+              }
+
+              throw new Error(`AI API status: ${aiRes.status}`);
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+
         // POST /api/sync (Ultra-veloce: esegue email:poll a partire dal 1 novembre e lancia queue:work in background)
         if (req.url === '/api/sync' && req.method === 'POST') {
           res.setHeader('Content-Type', 'application/json');

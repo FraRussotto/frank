@@ -113,7 +113,24 @@ export async function generateRAGAnswer(
   const requests = ecosystem?.requests || [];
   const expenses = ecosystem?.expenses || [];
 
-  // 1. Chiamata a Gemini 2.5 Flash se configurata
+  // 1. Chiamata diretta all'AI di Frank (/api/rag/ask alimentato da Sonar)
+  try {
+    const aiRes = await fetch('/api/rag/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, sources, ecosystem })
+    });
+    if (aiRes.ok) {
+      const data = await aiRes.json();
+      if (data.text && data.text.trim()) {
+        return { text: data.text.trim(), model: data.model || 'Frank AI' };
+      }
+    }
+  } catch (err) {
+    console.warn('Fallback sul motore locale Frank:', err);
+  }
+
+  // 2. Chiamata a Gemini 2.5 Flash se configurata manualmente dall'utente
   if (settings.geminiApiKey && settings.selectedModel === 'gemini-2.5-flash') {
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${settings.geminiApiKey}`;
@@ -319,15 +336,70 @@ ISTRUZIONI PER LA RISPOSTA:
     return { text: reply, model: 'Assistente Smart Local' };
   }
 
-  // D. Ricerca nei documenti RAG
+  // D. Ricerca nei documenti RAG (Fallback locale sintetico intelligente)
   if (sources.length > 0) {
     const main = sources[0];
-    let reply = `In base a **${main.chunk.documentTitle}** (rilevanza: ${(main.score * 100).toFixed(0)}%):\n\n`;
-    reply += `${main.chunk.content}\n\n`;
-    if (sources.length > 1) {
-      reply += `*Fonti aggiuntive consultate:* ${sources.slice(1).map(s => s.chunk.documentTitle).join(', ')}.`;
+    const content = main.chunk.content;
+    const docTitle = main.chunk.documentTitle;
+
+    // Estrazione mirata per dati puntuali richiesti frequentemente
+    if (q.includes('iva') || q.includes('p.iva') || q.includes('partita')) {
+      const pivaMatch = content.match(/(?:partita\s*iva|p\.?\s*iva)[:\s]*([0-9]{11})/i) ||
+                        content.match(/\b([0-9]{11})\b/);
+      if (pivaMatch) {
+        return {
+          text: `La tua **Partita IVA** è: **\`${pivaMatch[1]}\`**\n\n*(Estratta da ${docTitle})*`,
+          model: 'Frank Extractor'
+        };
+      }
     }
-    return { text: reply, model: 'Assistente Locale RAG' };
+
+    if (q.includes('codice fiscale') || q.includes('cf')) {
+      const cfMatch = content.match(/(?:codice\s*fiscale|cf)[:\s]*([A-Z0-9]{16})/i) ||
+                      content.match(/\b([A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z])\b/i);
+      if (cfMatch) {
+        return {
+          text: `Il tuo **Codice Fiscale** è: **\`${cfMatch[1]}\`**\n\n*(Estratto da ${docTitle})*`,
+          model: 'Frank Extractor'
+        };
+      }
+    }
+
+    if (q.includes('pec') || q.includes('domicilio digitale')) {
+      const pecMatch = content.match(/([a-zA-Z0-9._%+-]+@pec\.[a-zA-Z0-9.-]+)/i) ||
+                       content.match(/(?:pec|domicilio\s*digitale)[:\s]*([^\s@]+@[^\s@]+\.[^\s@]+)/i);
+      if (pecMatch) {
+        return {
+          text: `Il tuo domicilio digitale (**PEC**) è: **\`${pecMatch[1]}\`**\n\n*(Estratto da ${docTitle})*`,
+          model: 'Frank Extractor'
+        };
+      }
+    }
+
+    if (q.includes('indirizzo') || q.includes('sede') || q.includes('via') || q.includes('cap')) {
+      const lines = content.split('\n');
+      const addrLine = lines.find(l => /via|viale|piazza|corso|sede|indirizzo/i.test(l));
+      if (addrLine) {
+        return {
+          text: `L'indirizzo rilevato è: **${addrLine.trim()}**\n\n*(Estratto da ${docTitle})*`,
+          model: 'Frank Extractor'
+        };
+      }
+    }
+
+    // Se domanda generica, estrae solo le frasi che contengono parole chiave (max 300 caratteri)
+    const sentences = content.split(/[.\n]+/);
+    const relevant = sentences
+      .map(s => s.trim())
+      .filter(s => s.length > 20 && q.split(/\s+/).some(word => word.length > 3 && s.toLowerCase().includes(word)))
+      .slice(0, 3);
+
+    const cleanText = relevant.length > 0 ? relevant.join('.\n') + '.' : content.slice(0, 350) + '...';
+
+    return {
+      text: `In base a **${docTitle}**:\n\n${cleanText}\n\n*(Rilevanza fonte: ${(main.score * 100).toFixed(0)}%)*`,
+      model: 'Frank Sintesi Locale'
+    };
   }
 
   // E. Domanda su RAG
