@@ -21,6 +21,7 @@ export class CalendarSubagent implements ISubagent {
       let db: any = null;
       try {
         db = new DatabaseSync(EMAIL_DB_PATH, { readOnly: true });
+        db.exec('PRAGMA busy_timeout = 5000;');
         upcomingEvents = db.prepare(`
           SELECT id, subject, sender, event_start_at, event_end_at, recipients
           FROM emails
@@ -105,6 +106,7 @@ export class CalendarSubagent implements ISubagent {
       let db: any = null;
       try {
         db = new DatabaseSync(EMAIL_DB_PATH, { readOnly: true });
+        db.exec('PRAGMA busy_timeout = 5000;');
         events = db.prepare(`
           SELECT id, subject, sender, event_start_at, event_end_at
           FROM emails
@@ -113,6 +115,8 @@ export class CalendarSubagent implements ISubagent {
             AND LOWER(TRIM(subject)) NOT IN ('home', 'office')
           ORDER BY event_start_at ASC
         `).all(todayStr) as any[];
+      } catch (err) {
+        console.warn('CalendarSubagent query read warning:', err);
       } finally {
         if (db) try { db.close(); } catch {}
       }

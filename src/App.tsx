@@ -238,6 +238,19 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.DOCS, JSON.stringify(documents));
+    // Sincronizza istantaneamente con il Subagente Knowledge & RAG nel backend
+    fetch('/api/documents/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ documents })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status) {
+          setSuperAgentStatus(data.status);
+        }
+      })
+      .catch(err => console.warn('Errore sync documenti verso subagente:', err));
   }, [documents]);
 
   useEffect(() => {

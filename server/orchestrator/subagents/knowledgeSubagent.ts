@@ -29,23 +29,34 @@ export class KnowledgeSubagent implements ISubagent {
           created_at TEXT
         );
       `);
-
-      const countRow = db.prepare('SELECT COUNT(*) as cnt FROM kb_documents').get() as any;
-      if (countRow && countRow.cnt === 0) {
-        const seed = [
-          ['doc-1', 'Policy e Linee Guida Artefice Group', 'Aziendale', 4, new Date().toISOString()],
-          ['doc-2', 'Architettura Pimcore e Setup Ambiente', 'Tecnico', 6, new Date().toISOString()],
-          ['doc-3', 'Note Operative Server e DNS Citterio', 'Progetti', 4, new Date().toISOString()]
-        ];
-        const insertStmt = db.prepare(`
-          INSERT INTO kb_documents (id, title, category, chunk_count, created_at)
-          VALUES (?, ?, ?, ?, ?)
-        `);
-        seed.forEach(item => insertStmt.run(...item));
-      }
       db.close();
     } catch (e) {
       console.warn('KnowledgeSubagent ensureTables error:', e);
+    }
+  }
+
+  public static syncDocuments(docsList: any[]): void {
+    try {
+      const db = new DatabaseSync(FRANK_DB_PATH);
+      db.exec('DELETE FROM kb_documents');
+      if (Array.isArray(docsList) && docsList.length > 0) {
+        const stmt = db.prepare(`
+          INSERT INTO kb_documents (id, title, category, chunk_count, created_at)
+          VALUES (?, ?, ?, ?, ?)
+        `);
+        for (const d of docsList) {
+          stmt.run(
+            String(d.id),
+            String(d.title || 'Documento'),
+            String(d.category || 'Altro'),
+            Number(d.chunksCount || 0),
+            String(d.uploadedAt || new Date().toISOString())
+          );
+        }
+      }
+      db.close();
+    } catch (e) {
+      console.error('Error syncing documents to SQLite:', e);
     }
   }
 

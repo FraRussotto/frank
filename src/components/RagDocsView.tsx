@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, FileText, Trash2, Send, Bot, User } from 'lucide-react';
+import { UploadCloud, FileText, Trash2, Send, Bot, User, RotateCw, AlertCircle, FileSpreadsheet, File } from 'lucide-react';
 import { StoredDocument, DocumentChunk, AppSettings, ChatMessage, EcosystemContext } from '../types';
 import { retrieveRelevantChunks, generateRAGAnswer } from '../services/ragEngine';
 import { AiMessageRenderer } from './AiMessageRenderer';
@@ -25,39 +25,117 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
     {
       id: 'init-msg',
       sender: 'assistant',
-      content: 'Ciao Francesco! Sono Frank, il tuo Second Brain: puoi chiedermi qualsiasi cosa sulle attività della settimana, riunioni a calendario, task dalle email, spese fisse o documenti archiviati.',
+      content: 'Ciao Francesco! Sono Frank, il tuo Second Brain: puoi chiedermi qualsiasi cosa sulle attività della settimana, riunioni a calendario, task dalle email, spese fisse o documenti archiviati (inclusi PDF, Word ed Excel caricati).',
       timestamp: 'Adesso'
     }
   ]);
   const [query, setQuery] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [quickTitle, setQuickTitle] = useState('');
   const [quickText, setQuickText] = useState('');
   const [showPasteBox, setShowPasteBox] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    Array.from(e.target.files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target?.result as string;
-        if (!text) return;
-        const newDoc: StoredDocument = {
-          id: `doc-${Date.now()}`,
-          title: file.name,
-          category: 'Note',
-          fileType: 'md',
-          sizeBytes: file.size,
-          uploadedAt: new Date().toISOString(),
-          content: text,
-          chunksCount: 0,
-          tags: ['Upload']
-        };
-        onUploadDocument(newDoc);
-      };
-      reader.readAsText(file);
-    });
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    setIsUploading(true);
+    setUploadError(null);
+
+    const files = Array.from(e.target.files);
+
+    for (const file of files) {
+      try {
+        const lowerName = file.name.toLowerCase();
+        let extractedContent = '';
+        let detectedType: string = 'txt';
+
+        if (lowerName.endsWith('.txt') || lowerName.endsWith('.md')) {
+          extractedContent = await file.text();
+          detectedType = lowerName.endsWith('.md') ? 'md' : 'txt';
+        } else {
+          // Converte in Base64 per parsing multi-formato sicuro sul backend
+          const base64Str = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const res = reader.result as string;
+              resolve(res.split(',')[1] || '');
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
+          const res = await fetch('/api/documents/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: file.name, base64: base64Str })
+          });
+
+          if (!res.ok) {
+            throw new Error(`Errore server HTTP ${res.status}`);
+          }
+
+          const data = await res.json();
+          if (data.parsed?.text) {
+            extractedContent = data.parsed.text;
+            detectedType = data.parsed.fileType || 'doc';
+          } else {
+            throw new Error('Nessun testo estratto dal documento');
+          }
+        }
+
+        if (extractedContent.trim()) {
+          const category =
+            lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls') || lowerName.endsWith('.csv')
+              ? 'Finanze'
+              : lowerName.endsWith('.pdf')
+              ? 'Guida'
+              : lowerName.endsWith('.docx') || lowerName.endsWith('.doc')
+              ? 'Progetti'
+              : 'Note';
+
+          const newDoc: StoredDocument = {
+            id: `doc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            title: file.name,
+            category,
+            fileType: detectedType as any,
+            sizeBytes: file.size,
+            uploadedAt: new Date().toISOString(),
+            content: extractedContent,
+            chunksCount: 0,
+            tags: [detectedType.toUpperCase()]
+          };
+
+          onUploadDocument(newDoc);
+        }
+      } catch (err: any) {
+        console.error('Errore caricamento documento:', err);
+        setUploadError(`Errore nel caricamento di "${file.name}": ${err.message}`);
+      }
+    }
+
+    setIsUploading(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const getFormatBadge = (doc: StoredDocument) => {
+    const lower = (doc.title || doc.fileType || '').toLowerCase();
+    if (lower.endsWith('.pdf') || doc.fileType === 'pdf') {
+      return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200">PDF</span>;
+    }
+    if (lower.endsWith('.docx') || lower.endsWith('.doc') || doc.fileType === 'docx') {
+      return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">WORD</span>;
+    }
+    if (lower.endsWith('.xlsx') || lower.endsWith('.xls') || doc.fileType === 'xlsx') {
+      return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">EXCEL</span>;
+    }
+    if (lower.endsWith('.csv') || doc.fileType === 'csv') {
+      return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">CSV</span>;
+    }
+    return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-700 border border-slate-200">TESTO</span>;
   };
 
   const handleAddQuickNote = (e: React.FormEvent) => {
@@ -150,18 +228,44 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".txt,.md,.json,.csv"
+              accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,.md,.json"
               onChange={handleFileUpload}
               className="hidden"
             />
 
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full py-3 px-4 border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50 rounded-lg text-xs text-slate-600 flex items-center justify-center space-x-2 transition-colors"
+              disabled={isUploading}
+              className="w-full py-3.5 px-4 border border-dashed border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-indigo-50/20 rounded-xl text-xs text-slate-700 flex flex-col items-center justify-center gap-1.5 transition-all group disabled:opacity-50"
             >
-              <UploadCloud className="w-4 h-4 text-sky-600" />
-              <span>Carica file (.md, .txt)</span>
+              {isUploading ? (
+                <div className="flex items-center gap-2 text-indigo-600 font-semibold py-1">
+                  <RotateCw className="w-4 h-4 animate-spin text-indigo-600" />
+                  <span>Estrazione e indicizzazione semantica...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 text-slate-800 font-semibold">
+                    <UploadCloud className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" />
+                    <span>Carica Documenti (PDF, Word, Excel, CSV, Note)</span>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-1 text-[10px] text-slate-400">
+                    <span className="px-1 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200 font-mono">.pdf</span>
+                    <span className="px-1 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200 font-mono">.docx</span>
+                    <span className="px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">.xlsx</span>
+                    <span className="px-1 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200 font-mono">.csv</span>
+                    <span className="px-1 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 font-mono">.md / .txt</span>
+                  </div>
+                </>
+              )}
             </button>
+
+            {uploadError && (
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{uploadError}</span>
+              </div>
+            )}
 
             {/* Quick paste note */}
             {showPasteBox && (
@@ -204,10 +308,14 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
             {documents.map((doc) => (
               <div key={doc.id} className="p-3 flex items-center justify-between hover:bg-slate-50/60 text-xs">
                 <div className="flex items-center space-x-2.5 truncate mr-2">
-                  <FileText className="w-4 h-4 text-sky-600 shrink-0" />
+                  <div className="shrink-0">{getFormatBadge(doc)}</div>
                   <div className="truncate">
-                    <div className="font-medium text-slate-800 truncate">{doc.title}</div>
-                    <div className="text-[10px] text-slate-400">{(doc.sizeBytes / 1024).toFixed(1)} KB</div>
+                    <div className="font-semibold text-slate-800 truncate">{doc.title}</div>
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                      <span>{(doc.sizeBytes / 1024).toFixed(1)} KB</span>
+                      <span>•</span>
+                      <span className="text-slate-500">{doc.category}</span>
+                    </div>
                   </div>
                 </div>
                 <button

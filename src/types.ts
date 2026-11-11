@@ -46,8 +46,8 @@ export interface DocumentChunk {
 export interface StoredDocument {
   id: string;
   title: string;
-  category: 'Tech' | 'Note' | 'Guida' | 'Finanze' | 'Personale';
-  fileType: 'md' | 'txt' | 'json' | 'pdf' | 'csv';
+  category: 'Tech' | 'Note' | 'Guida' | 'Finanze' | 'Personale' | string;
+  fileType: 'md' | 'txt' | 'json' | 'pdf' | 'csv' | 'docx' | 'xlsx' | string;
   sizeBytes: number;
   uploadedAt: string;
   content: string;

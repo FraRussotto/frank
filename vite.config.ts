@@ -6,6 +6,8 @@ import zlib from 'node:zlib';
 import { autonomousAgent, getAllAnalysesMap, analyzeThreadAutonomous } from './server/autonomousAgent';
 import { superAgent } from './server/orchestrator/superAgent';
 import { FinanceSubagent } from './server/orchestrator/subagents/financeSubagent';
+import { KnowledgeSubagent } from './server/orchestrator/subagents/knowledgeSubagent';
+import { parseDocumentBuffer } from './server/documentParser';
 
 const DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
 const LARAVEL_DIR = '/Users/fra_russo/email-ai-agent';
@@ -490,6 +492,30 @@ function emailAgentPlugin() {
           return;
         }
 
+        // POST /api/documents/parse (Estrae testo strutturato da PDF, Word, Excel, CSV, JSON, ecc.)
+        if (req.url === '/api/documents/parse' && req.method === 'POST') {
+          let bodyStr = '';
+          req.on('data', (chunk: any) => { bodyStr += chunk; });
+          req.on('end', async () => {
+            res.setHeader('Content-Type', 'application/json');
+            try {
+              const { filename, base64 } = JSON.parse(bodyStr || '{}');
+              if (!filename || !base64) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'filename e base64 sono obbligatori' }));
+                return;
+              }
+              const buffer = Buffer.from(base64, 'base64');
+              const parsed = await parseDocumentBuffer(filename, buffer);
+              res.end(JSON.stringify({ success: true, parsed }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+
         // GET /api/super-agent/status (Stato Super Agente e Roster Subagenti)
         if (req.url === '/api/super-agent/status' && req.method === 'GET') {
           res.setHeader('Content-Type', 'application/json');
@@ -601,6 +627,26 @@ function emailAgentPlugin() {
               const { expenses } = JSON.parse(bodyStr || '{}');
               FinanceSubagent.syncExpenses(expenses || []);
               // Rigenera immediatamente il briefing esecutivo con i dati reali dell'utente
+              await superAgent.generateExecutiveBriefing();
+              const status = await superAgent.getStatus();
+              res.end(JSON.stringify({ success: true, status }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+
+        // POST /api/documents/sync (Sincronizza documenti con il Knowledge Subagent)
+        if (req.url === '/api/documents/sync' && req.method === 'POST') {
+          let bodyStr = '';
+          req.on('data', (chunk: any) => { bodyStr += chunk; });
+          req.on('end', async () => {
+            res.setHeader('Content-Type', 'application/json');
+            try {
+              const { documents } = JSON.parse(bodyStr || '{}');
+              KnowledgeSubagent.syncDocuments(documents || []);
               await superAgent.generateExecutiveBriefing();
               const status = await superAgent.getStatus();
               res.end(JSON.stringify({ success: true, status }));
