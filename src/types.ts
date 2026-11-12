@@ -184,3 +184,19 @@ export interface SuperAgentStatus {
   latestBriefing: SuperAgentBriefing | null;
 }
 
+export interface SuperAgentDelegation {
+  id: string;
+  name: string;
+  icon: string;
+  detail: string;
+}
+
+export interface CopilotMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  delegations?: SuperAgentDelegation[];
+  modelUsed?: string;
+}
+

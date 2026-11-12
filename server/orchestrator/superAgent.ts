@@ -377,6 +377,211 @@ export class FrankSuperAgent {
       db.close();
     } catch {}
   }
+
+  /**
+   * Dialogo interattivo e coordinato con Frank Super Agente.
+   * Frank analizza la richiesta, delega ai subagenti di competenza,
+   * raccoglie i dati, li interpreta e genera una risposta conversazionale esecutiva.
+   */
+  public async answerUserDialog(
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+    clientContext?: { sources?: any[]; ecosystem?: any }
+  ): Promise<{
+    text: string;
+    delegations: Array<{ id: string; name: string; icon: string; detail: string }>;
+    model: string;
+  }> {
+    const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')?.content || '';
+    const q = lastUserMessage.toLowerCase();
+
+    // 1. Identificazione dei domini di competenza da delegare
+    const hasClientSources = Array.isArray(clientContext?.sources) && clientContext.sources.length > 0;
+    const isDocRelated =
+      hasClientSources ||
+      q.includes('iva') || q.includes('p.iva') || q.includes('partita') ||
+      q.includes('codice fiscale') || q.includes('cf') ||
+      q.includes('visura') || q.includes('document') || q.includes('pdf') ||
+      q.includes('word') || q.includes('excel') || q.includes('foglio') ||
+      q.includes('pec') || q.includes('sede') || q.includes('statuto') ||
+      q.includes('contratt') || q.includes('policy') || q.includes('manual');
+
+    const isEmailRelated =
+      q.includes('email') || q.includes('thread') || q.includes('posta') ||
+      q.includes('messagg') || q.includes('task') || q.includes('attivit') ||
+      q.includes('da fare') || q.includes('priorit') || q.includes('citterio') ||
+      q.includes('resend') || q.includes('dreame') || q.includes('yowup') ||
+      q.includes('electrolux') || q.includes('scritto') || q.includes('urgent');
+
+    const isCalendarRelated =
+      q.includes('calendar') || q.includes('riunion') || q.includes('meeting') ||
+      q.includes('agenda') || q.includes('appuntament') || q.includes('call') ||
+      q.includes('orari') || q.includes('quando') || q.includes('settiman') ||
+      q.includes('oggi') || q.includes('domani');
+
+    const isFinanceRelated =
+      q.includes('spes') || q.includes('pagar') || q.includes('bollett') ||
+      q.includes('affitt') || q.includes('soldi') || q.includes('saldo') ||
+      q.includes('bonifico') || q.includes('cost') || q.includes('budget') ||
+      q.includes('playstation') || q.includes('palestra') || q.includes('assicuraz');
+
+    const isGeneralStatus =
+      !isDocRelated && !isEmailRelated && !isCalendarRelated && !isFinanceRelated;
+
+    const delegations: Array<{ id: string; name: string; icon: string; detail: string }> = [];
+    const contextBlocks: string[] = [];
+
+    // A. Delega al Subagente Knowledge & RAG
+    if (isDocRelated || isGeneralStatus) {
+      const sources = clientContext?.sources || [];
+      if (sources.length > 0) {
+        const docNames = Array.from(new Set(sources.map((s: any) => s.chunk?.documentTitle || s.documentTitle || 'Documento'))).join(', ');
+        delegations.push({
+          id: 'knowledge',
+          name: 'Subagente Knowledge & RAG',
+          icon: 'FileText',
+          detail: `Estratto da ${docNames}`
+        });
+        const docsText = sources
+          .slice(0, 3)
+          .map((s: any) => `[FONTE: ${s.chunk?.documentTitle || s.documentTitle}]:\n${s.chunk?.content || s.content}`)
+          .join('\n\n');
+        contextBlocks.push(`=== 📄 DATI DAL SUBAGENTE KNOWLEDGE & RAG ===\n${docsText}`);
+      } else if (isDocRelated) {
+        delegations.push({
+          id: 'knowledge',
+          name: 'Subagente Knowledge & RAG',
+          icon: 'FileText',
+          detail: 'Ricerca nei documenti indicizzati'
+        });
+      }
+    }
+
+    // B. Delega al Subagente Email & Thread
+    if (isEmailRelated || isGeneralStatus) {
+      const emailAgent = this.subagents.get('email');
+      if (emailAgent) {
+        const res = await emailAgent.query('active');
+        const tasks = res?.tasks || [];
+        delegations.push({
+          id: 'email',
+          name: 'Subagente Email & Thread',
+          icon: 'MailCheck',
+          detail: `${tasks.length} task attivi analizzati dai thread recenti`
+        });
+        if (tasks.length > 0) {
+          const tasksText = tasks
+            .slice(0, 6)
+            .map((t: any) => `- [Urgenza ${t.urgency.toUpperCase()}] ${t.summary} (Thread: "${t.subject}")`)
+            .join('\n');
+          contextBlocks.push(`=== ✉️ DATI DAL SUBAGENTE EMAIL & THREAD ===\n${tasksText}`);
+        }
+      }
+    }
+
+    // C. Delega al Subagente Calendario & Agenda
+    if (isCalendarRelated || isGeneralStatus) {
+      const calendarAgent = this.subagents.get('calendar');
+      if (calendarAgent) {
+        const res = await calendarAgent.query('upcoming');
+        const events = res?.events || [];
+        delegations.push({
+          id: 'calendar',
+          name: 'Subagente Calendario & Agenda',
+          icon: 'Calendar',
+          detail: `${events.length} eventi futuri monitorati`
+        });
+        if (events.length > 0) {
+          const evText = events
+            .slice(0, 5)
+            .map((e: any) => `- ${e.event_start_at}: ${e.subject} (Organizzatore: ${e.sender || 'Lavoro'})`)
+            .join('\n');
+          contextBlocks.push(`=== 📅 DATI DAL SUBAGENTE CALENDARIO ===\n${evText}`);
+        }
+      }
+    }
+
+    // D. Delega al Subagente Spese & Finanze
+    if (isFinanceRelated || isGeneralStatus) {
+      const financeAgent = this.subagents.get('finance');
+      if (financeAgent) {
+        const res = await financeAgent.query('all');
+        const expenses = res?.expenses || [];
+        const unpaid = expenses.filter((e: any) => !e.is_paid);
+        const unpaidTotal = unpaid.reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
+        delegations.push({
+          id: 'finance',
+          name: 'Subagente Spese & Finanze',
+          icon: 'CreditCard',
+          detail: `€${unpaidTotal.toFixed(2)} in ${unpaid.length} spese da saldare`
+        });
+        if (expenses.length > 0) {
+          const expText = unpaid
+            .map((e: any) => `- ${e.name}: €${e.amount} (scadenza giorno ${e.due_day} del mese)`)
+            .join('\n');
+          contextBlocks.push(`=== 💳 DATI DAL SUBAGENTE SPESE & FINANZE ===\nSpese da saldare:\n${expText || 'Tutte le spese fisse risultano saldate.'}`);
+        }
+      }
+    }
+
+    // Costruzione del Prompt per Sonar
+    const today = new Date();
+    const dayNames = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+    const currentDay = `${dayNames[today.getDay()]} ${today.toLocaleDateString('it-IT')}`;
+
+    const systemPrompt = `Sei Frank, il Super Agente Coordinatore e Chief-of-Staff del Second Brain di Francesco Russotto.
+Oggi è ${currentDay} (anno 2026).
+
+COME OPERI:
+1. Sei dialogativo, cordiale e presente, come un vero assistente personale, ma SEMPRE esecutivo, lucido ed essenziale.
+2. Rispondi in modo mirato e compatto alla richiesta di Francesco basandoti sui dati reali che hai appena fatto estrarre ai tuoi subagenti delegati (riportati sotto).
+3. Se Francesco chiede un dato specifico (es. numero Partita IVA, codice fiscale, PEC, indirizzo della sede, orario di un appuntamento, importo spesa):
+   Forniscilo SUBITO in prima riga evidenziato chiaramente in **grassetto**, con fonte tra parentesi. NON incollare mai l'intero documento o il suo indice.
+4. Se è una domanda di follow-up nella conversazione, mantieni naturale continuità col discorso.
+5. Usa formattazione Markdown elegante ed elenchi puntati puliti quando elenchi più elementi.
+
+DATI ESTRATTI DAI SUBAGENTI DELEGATI:
+${contextBlocks.join('\n\n') || 'Nessun dato specifico estratto dai subagenti.'}`;
+
+    const apiKey = getAiApiKey();
+    try {
+      const aiRes = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'sonar',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...messages.slice(-6)
+          ],
+          temperature: 0.1
+        })
+      });
+
+      if (aiRes.ok) {
+        const data: any = await aiRes.json();
+        const text = data.choices?.[0]?.message?.content;
+        if (text && text.trim()) {
+          return {
+            text: text.trim(),
+            delegations,
+            model: 'Frank Super Agent (Sonar)'
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('Errore chiamata Sonar in answerUserDialog:', err);
+    }
+
+    // Fallback locale compatto
+    return {
+      text: `Ho consultato i subagenti pertinenti per la tua richiesta. ${contextBlocks.slice(0, 1).join('\n')}`,
+      delegations,
+      model: 'Frank Smart Core'
+    };
+  }
 }
 
 export const superAgent = new FrankSuperAgent();

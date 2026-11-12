@@ -658,6 +658,27 @@ function emailAgentPlugin() {
           return;
         }
 
+        // POST /api/super-agent/chat (Dialogo coordinato con Frank Super Agente & Tracciamento Deleghe)
+        if (req.url === '/api/super-agent/chat' && req.method === 'POST') {
+          let bodyStr = '';
+          req.on('data', (chunk: any) => { bodyStr += chunk; });
+          req.on('end', async () => {
+            res.setHeader('Content-Type', 'application/json');
+            try {
+              const { messages, sources, ecosystem } = JSON.parse(bodyStr || '{}');
+              const result = await superAgent.answerUserDialog(
+                Array.isArray(messages) ? messages : [],
+                { sources, ecosystem }
+              );
+              res.end(JSON.stringify({ success: true, ...result }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+
         // POST /api/rag/ask (Motore AI unificato per Frank RAG & Chat: risposte sintetiche e precise)
         if (req.url === '/api/rag/ask' && req.method === 'POST') {
           let bodyStr = '';
