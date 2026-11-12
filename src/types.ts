@@ -200,9 +200,10 @@ export interface CopilotMessage {
   modelUsed?: string;
 }
 
-export type DeadlineCategory = 'task_operativo' | 'documento' | 'preparazione_call' | 'pagamento' | 'manuale';
+export type DeadlineCategory = 'task_operativo' | 'documento' | 'preparazione_call' | 'pagamento' | 'manuale' | 'casa_utenze' | 'burocrazia' | 'salute';
 export type DeadlinePriority = 'alta' | 'media' | 'bassa';
 export type DeadlineStatus = 'pending' | 'completed' | 'dismissed';
+export type DeadlineScope = 'personal' | 'work';
 
 export interface DeadlineItem {
   id: string;
@@ -212,6 +213,7 @@ export interface DeadlineItem {
   category: DeadlineCategory;
   priority: DeadlinePriority;
   status: DeadlineStatus;
+  scope?: DeadlineScope;
   source: string;
   sourceId?: string;
   daysNotice: number;

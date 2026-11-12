@@ -74,11 +74,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const pendingRequests = requests.filter(r => r.status === 'pending');
   const upcomingEvents = events.slice(0, 3);
 
-  // Scadenze & Cose da Fare (Deadline Engine)
+  // Scadenze Personali (Deadline Engine)
   const [deadlinesSummary, setDeadlinesSummary] = useState<UpcomingDeadlinesSummary | null>(null);
 
   React.useEffect(() => {
-    fetch('/api/deadlines')
+    fetch('/api/deadlines?scope=personal')
       .then(res => res.json())
       .then(data => {
         if (data.summary) setDeadlinesSummary(data.summary);
@@ -191,13 +191,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               </div>
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-2">
-                  Promemoria Preventivo di Frank: {imminentCount} {imminentCount === 1 ? 'attività in scadenza' : 'attività in scadenza'}
+                  Promemoria Scadenze Personali: {imminentCount} {imminentCount === 1 ? 'scadenza a breve' : 'scadenze a breve'}
                   <span className="text-[10px] lowercase font-normal px-2 py-0.2 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
                     prossime 72h
                   </span>
                 </h3>
                 <p className="text-xs text-amber-800 mt-0.5">
-                  Attività operative, pagamenti e adempimenti documentali sotto monitoraggio preventivo.
+                  Spese, pagamenti e adempimenti della tua vita personale sotto monitoraggio preventivo.
                 </p>
               </div>
             </div>
@@ -206,7 +206,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               onClick={() => onNavigateTab('deadlines')}
               className="flex items-center gap-1 text-xs font-bold text-amber-900 hover:text-amber-950 bg-white/80 hover:bg-white px-3 py-1.5 rounded-xl border border-amber-200 shadow-2xs self-start sm:self-auto transition-colors"
             >
-              <span>Vedi tutte le scadenze</span>
+              <span>Vedi scadenze personali</span>
               <ArrowRight className="w-3.5 h-3.5 text-amber-700" />
             </button>
           </div>

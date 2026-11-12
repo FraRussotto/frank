@@ -8,6 +8,7 @@ import { superAgent } from './server/orchestrator/superAgent';
 import { FinanceSubagent } from './server/orchestrator/subagents/financeSubagent';
 import { KnowledgeSubagent } from './server/orchestrator/subagents/knowledgeSubagent';
 import { deadlineEngine } from './server/orchestrator/deadlineEngine';
+import { generateDailyBriefing } from './server/orchestrator/dailyBriefing';
 import { parseDocumentBuffer } from './server/documentParser';
 
 const DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
@@ -695,7 +696,8 @@ function emailAgentPlugin() {
             const status = urlObj.searchParams.get('status') || undefined;
             const category = urlObj.searchParams.get('category') || undefined;
             const query = urlObj.searchParams.get('q') || undefined;
-            const data = deadlineEngine.getDeadlines({ status, category, query });
+            const scope = urlObj.searchParams.get('scope') || undefined;
+            const data = deadlineEngine.getDeadlines({ status, category, query, scope });
             res.end(JSON.stringify({ success: true, ...data }));
           } catch (err: any) {
             res.statusCode = 500;
@@ -790,6 +792,19 @@ function emailAgentPlugin() {
             const syncStats = await deadlineEngine.syncFromAllSubagents();
             const result = deadlineEngine.getDeadlines();
             res.end(JSON.stringify({ success: true, syncStats, ...result }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: err.message }));
+          }
+          return;
+        }
+
+        // GET /api/daily-briefing/preview (Anteprima del messaggio giornaliero Lavoro + Personale)
+        if (req.url === '/api/daily-briefing/preview' && req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
+          try {
+            const briefing = await generateDailyBriefing();
+            res.end(JSON.stringify({ success: true, briefing }));
           } catch (err: any) {
             res.statusCode = 500;
             res.end(JSON.stringify({ error: err.message }));

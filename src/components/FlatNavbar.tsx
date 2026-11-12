@@ -133,7 +133,7 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
               <span>Documenti & RAG</span>
             </button>
 
-            {/* Scadenze & Cose da Fare Tab */}
+            {/* Scadenze Personali Tab */}
             <button
               onClick={() => onTabChange('deadlines')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
@@ -143,7 +143,7 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
               }`}
             >
               <CalendarCheck className="w-3.5 h-3.5 text-amber-600" />
-              <span>Scadenze & Task</span>
+              <span>Scadenze</span>
             </button>
           </nav>
 

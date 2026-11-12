@@ -6,9 +6,10 @@ const FRANK_DB_PATH = '/Users/fra_russo/Frank/database/frank_agent.sqlite';
 const EMAIL_DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
 const LARAVEL_ENV_PATH = '/Users/fra_russo/email-ai-agent/.env';
 
-export type DeadlineCategory = 'task_operativo' | 'documento' | 'preparazione_call' | 'pagamento' | 'manuale';
+export type DeadlineCategory = 'task_operativo' | 'documento' | 'preparazione_call' | 'pagamento' | 'manuale' | 'casa_utenze' | 'salute' | 'burocrazia';
 export type DeadlinePriority = 'alta' | 'media' | 'bassa';
 export type DeadlineStatus = 'pending' | 'completed' | 'dismissed';
+export type DeadlineScope = 'personal' | 'work';
 
 export interface DeadlineRecord {
   id: string;
@@ -18,6 +19,7 @@ export interface DeadlineRecord {
   category: DeadlineCategory;
   priority: DeadlinePriority;
   status: DeadlineStatus;
+  scope: DeadlineScope;
   source: string;
   sourceId?: string;
   daysNotice: number;
@@ -77,13 +79,18 @@ export class DeadlineEngine {
           source_id TEXT,
           days_notice INTEGER DEFAULT 3,
           amount REAL,
+          scope TEXT DEFAULT 'personal',
           completed_at TEXT,
           created_at TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_deadlines_due_date ON deadlines(due_date);
         CREATE INDEX IF NOT EXISTS idx_deadlines_status ON deadlines(status);
         CREATE INDEX IF NOT EXISTS idx_deadlines_source_id ON deadlines(source_id);
+        CREATE INDEX IF NOT EXISTS idx_deadlines_scope ON deadlines(scope);
       `);
+      try {
+        db.exec("ALTER TABLE deadlines ADD COLUMN scope TEXT DEFAULT 'personal';");
+      } catch {}
       db.close();
     } catch (e) {
       console.warn('DeadlineEngine ensureTables error:', e);
@@ -118,6 +125,7 @@ export class DeadlineEngine {
       category: row.category as DeadlineCategory,
       priority: (row.priority || 'media') as DeadlinePriority,
       status: (row.status || 'pending') as DeadlineStatus,
+      scope: (row.scope || 'personal') as DeadlineScope,
       source: String(row.source || 'Manuale'),
       sourceId: row.source_id ? String(row.source_id) : undefined,
       daysNotice: Number(row.days_notice || 3),
@@ -129,7 +137,7 @@ export class DeadlineEngine {
     };
   }
 
-  public getDeadlines(filter?: { status?: string; category?: string; query?: string }): {
+  public getDeadlines(filter?: { status?: string; category?: string; query?: string; scope?: string }): {
     deadlines: DeadlineRecord[];
     summary: UpcomingDeadlinesSummary;
   } {
@@ -139,6 +147,10 @@ export class DeadlineEngine {
       let query = 'SELECT * FROM deadlines WHERE 1=1';
       const params: any[] = [];
 
+      if (filter?.scope && filter.scope !== 'all') {
+        query += ' AND scope = ?';
+        params.push(filter.scope);
+      }
       if (filter?.status && filter.status !== 'all') {
         query += ' AND status = ?';
         params.push(filter.status);
@@ -191,6 +203,7 @@ export class DeadlineEngine {
     dueDate: string;
     category?: DeadlineCategory;
     priority?: DeadlinePriority;
+    scope?: DeadlineScope;
     source?: string;
     sourceId?: string;
     daysNotice?: number;
@@ -200,14 +213,15 @@ export class DeadlineEngine {
     const createdAt = new Date().toISOString();
     const category = data.category || 'manuale';
     const priority = data.priority || 'media';
+    const scope = data.scope || 'personal';
     const daysNotice = data.daysNotice !== undefined ? data.daysNotice : 3;
     const source = data.source || 'Manuale';
 
     try {
       const db = new DatabaseSync(FRANK_DB_PATH);
       const stmt = db.prepare(`
-        INSERT INTO deadlines (id, title, description, due_date, category, priority, status, source, source_id, days_notice, amount, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
+        INSERT INTO deadlines (id, title, description, due_date, category, priority, status, scope, source, source_id, days_notice, amount, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)
       `);
       stmt.run(
         id,
@@ -216,6 +230,7 @@ export class DeadlineEngine {
         data.dueDate,
         category,
         priority,
+        scope,
         source,
         data.sourceId || null,
         daysNotice,
@@ -235,6 +250,7 @@ export class DeadlineEngine {
       category,
       priority,
       status: 'pending',
+      scope,
       source,
       source_id: data.sourceId,
       days_notice: daysNotice,
@@ -324,11 +340,11 @@ export class DeadlineEngine {
       // Prepara statement per verificare se un source_id esiste già
       const checkStmt = db.prepare('SELECT id, status FROM deadlines WHERE source_id = ? LIMIT 1');
       const insertStmt = db.prepare(`
-        INSERT INTO deadlines (id, title, description, due_date, category, priority, status, source, source_id, days_notice, amount, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
+        INSERT INTO deadlines (id, title, description, due_date, category, priority, status, scope, source, source_id, days_notice, amount, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)
       `);
 
-      // 1. DAI THREAD EMAIL ANALIZZATI (Task operativi)
+      // 1. DAI THREAD EMAIL ANALIZZATI (Task operativi di lavoro)
       try {
         const threads = db.prepare(`
           SELECT thread_id, subject, active_tasks_json, analyzed_at
@@ -371,6 +387,7 @@ export class DeadlineEngine {
                   dueDateStr,
                   'task_operativo',
                   priority,
+                  'work',
                   `Email: ${t.subject}`,
                   sourceId,
                   daysNotice,
@@ -386,7 +403,7 @@ export class DeadlineEngine {
         console.warn('Sync email tasks error:', err);
       }
 
-      // 2. DALLE SPESE FISSE E SCADENZE PAGAMENTO
+      // 2. DALLE SPESE FISSE E SCADENZE PAGAMENTO (Personali)
       try {
         const expenses = db.prepare('SELECT * FROM fixed_expenses WHERE is_paid = 0').all() as any[];
         for (const e of expenses) {
@@ -417,6 +434,7 @@ export class DeadlineEngine {
               dueDateStr,
               'pagamento',
               'alta',
+              'personal',
               `Spese Fisse: ${e.name}`,
               sourceId,
               5, // Avvisa 5 giorni prima
@@ -430,7 +448,7 @@ export class DeadlineEngine {
         console.warn('Sync finance expenses error:', err);
       }
 
-      // 3. DAL CALENDARIO & MEETING
+      // 3. DAL CALENDARIO & MEETING (Lavoro)
       if (existsSync(EMAIL_DB_PATH)) {
         try {
           const emailDb = new DatabaseSync(EMAIL_DB_PATH, { readOnly: true });
@@ -462,6 +480,7 @@ export class DeadlineEngine {
                 eventDateStr,
                 'preparazione_call',
                 'media',
+                'work',
                 `Google Calendar: ${ev.subject}`,
                 sourceId,
                 1, // Avvisa 1 giorno prima
@@ -571,6 +590,7 @@ ${text.slice(0, 3500)}`;
           dueDate: formattedDate,
           category: 'documento',
           priority: item.priority === 'alta' ? 'alta' : (item.priority === 'bassa' ? 'bassa' : 'media'),
+          scope: 'personal',
           source: `Documento: ${filename}`,
           sourceId: `doc-${filename}-${item.title.substring(0, 20)}`,
           daysNotice: Number(item.daysNotice || 7)
@@ -587,3 +607,4 @@ ${text.slice(0, 3500)}`;
 }
 
 export const deadlineEngine = DeadlineEngine.getInstance();
+

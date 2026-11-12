@@ -64,7 +64,7 @@ export const DeadlinesView: React.FC<DeadlinesViewProps> = ({ onNavigateTab }) =
 
   const fetchDeadlines = async () => {
     try {
-      const res = await fetch('/api/deadlines');
+      const res = await fetch('/api/deadlines?scope=personal');
       if (res.ok) {
         const data = await res.json();
         if (data.deadlines) setDeadlines(data.deadlines);
@@ -86,10 +86,9 @@ export const DeadlinesView: React.FC<DeadlinesViewProps> = ({ onNavigateTab }) =
     try {
       const res = await fetch('/api/deadlines/sync', { method: 'POST' });
       if (res.ok) {
-        const data = await res.json();
-        if (data.deadlines) setDeadlines(data.deadlines);
-        if (data.summary) setSummary(data.summary);
-        showToast(`Scansione completata: +${data.syncStats?.added || 0} nuove scadenze rilevate dai subagenti`);
+        // Dopo la scansione generale, ricarica solo l'area personale
+        await fetchDeadlines();
+        showToast('Scadenziario personale aggiornato con Frank!');
       }
     } catch (err) {
       console.error('Errore sync deadlines:', err);
@@ -108,9 +107,7 @@ export const DeadlinesView: React.FC<DeadlinesViewProps> = ({ onNavigateTab }) =
         body: JSON.stringify({ id: item.id, updates: { status: newStatus } })
       });
       if (res.ok) {
-        const data = await res.json();
-        if (data.deadlines) setDeadlines(data.deadlines);
-        if (data.summary) setSummary(data.summary);
+        await fetchDeadlines();
         showToast(newStatus === 'completed' ? 'Attività segnata come completata!' : 'Attività riaperta');
       }
     } catch (err) {
@@ -123,9 +120,7 @@ export const DeadlinesView: React.FC<DeadlinesViewProps> = ({ onNavigateTab }) =
     try {
       const res = await fetch(`/api/deadlines?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
-        const data = await res.json();
-        if (data.deadlines) setDeadlines(data.deadlines);
-        if (data.summary) setSummary(data.summary);
+        await fetchDeadlines();
         showToast('Scadenza eliminata');
       }
     } catch (err) {
@@ -147,21 +142,20 @@ export const DeadlinesView: React.FC<DeadlinesViewProps> = ({ onNavigateTab }) =
           dueDate: formDueDate,
           category: formCategory,
           priority: formPriority,
+          scope: 'personal',
           daysNotice: Number(formDaysNotice),
           amount: formAmount ? parseFloat(formAmount) : undefined,
-          source: 'Inserimento manuale'
+          source: 'Personale'
         })
       });
 
       if (res.ok) {
-        const data = await res.json();
-        if (data.deadlines) setDeadlines(data.deadlines);
-        if (data.summary) setSummary(data.summary);
+        await fetchDeadlines();
         setIsModalOpen(false);
         setFormTitle('');
         setFormDescription('');
         setFormAmount('');
-        showToast('Nuova scadenza registrata!');
+        showToast('Nuova scadenza personale registrata!');
       }
     } catch (err) {
       console.error('Errore create deadline:', err);
@@ -171,21 +165,21 @@ export const DeadlinesView: React.FC<DeadlinesViewProps> = ({ onNavigateTab }) =
 
   const getCategoryIcon = (cat: DeadlineCategory) => {
     switch (cat) {
-      case 'task_operativo': return <MailCheck className="w-4 h-4 text-sky-600" />;
-      case 'documento': return <FileText className="w-4 h-4 text-purple-600" />;
-      case 'preparazione_call': return <Calendar className="w-4 h-4 text-amber-600" />;
       case 'pagamento': return <CreditCard className="w-4 h-4 text-rose-600" />;
+      case 'casa_utenze': return <Layers className="w-4 h-4 text-sky-600" />;
+      case 'burocrazia': return <ShieldAlert className="w-4 h-4 text-amber-600" />;
+      case 'documento': return <FileText className="w-4 h-4 text-purple-600" />;
       default: return <Clock className="w-4 h-4 text-indigo-600" />;
     }
   };
 
   const getCategoryLabel = (cat: DeadlineCategory) => {
     switch (cat) {
-      case 'task_operativo': return 'Task Email / Lavoro';
-      case 'documento': return 'Documento & Burocrazia';
-      case 'preparazione_call': return 'Riunione / Agenda';
-      case 'pagamento': return 'Pagamento & Finanze';
-      default: return 'Cosa da fare';
+      case 'pagamento': return 'Spese & Pagamenti';
+      case 'casa_utenze': return 'Casa & Utenze';
+      case 'burocrazia': return 'Fisco & Burocrazia';
+      case 'documento': return 'Documenti Personali';
+      default: return 'Altro Personale';
     }
   };
 
@@ -230,13 +224,13 @@ export const DeadlinesView: React.FC<DeadlinesViewProps> = ({ onNavigateTab }) =
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                Scadenze & Cose da Fare
-                <span className="text-[10px] uppercase font-mono font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  Frank Engine
+                Scadenze
+                <span className="text-[10px] uppercase font-mono font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                  Vita Personale
                 </span>
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                Il registro unificato e preventivo: task operativi, adempimenti documentali, riunioni e pagamenti.
+                Il registro preventivo delle scadenze personali: spese, utenze, fisco, scadenze documenti e adempimenti privati.
               </p>
             </div>
           </div>
@@ -397,11 +391,11 @@ export const DeadlinesView: React.FC<DeadlinesViewProps> = ({ onNavigateTab }) =
           </span>
           {[
             { id: 'all', label: 'Tutte' },
-            { id: 'task_operativo', label: 'Email / Operativi' },
-            { id: 'documento', label: 'Documenti & Contratti' },
-            { id: 'preparazione_call', label: 'Riunioni & Agenda' },
             { id: 'pagamento', label: 'Spese & Pagamenti' },
-            { id: 'manuale', label: 'Manuali' }
+            { id: 'casa_utenze', label: 'Casa & Utenze' },
+            { id: 'burocrazia', label: 'Fisco & Burocrazia' },
+            { id: 'documento', label: 'Documenti Personali' },
+            { id: 'manuale', label: 'Altro Personale' }
           ].map(cat => (
             <button
               key={cat.id}
@@ -628,11 +622,11 @@ export const DeadlinesView: React.FC<DeadlinesViewProps> = ({ onNavigateTab }) =
                     onChange={(e) => setFormCategory(e.target.value as DeadlineCategory)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white"
                   >
-                    <option value="task_operativo">Task Operativo / Email</option>
-                    <option value="documento">Documento / Burocrazia</option>
-                    <option value="preparazione_call">Riunione / Agenda</option>
-                    <option value="pagamento">Pagamento / Finanze</option>
-                    <option value="manuale">Personale / Altro</option>
+                    <option value="pagamento">Spese & Pagamenti personali</option>
+                    <option value="casa_utenze">Casa & Utenze</option>
+                    <option value="burocrazia">Fisco & Burocrazia</option>
+                    <option value="documento">Documenti Personali</option>
+                    <option value="manuale">Altro Personale</option>
                   </select>
                 </div>
               </div>
@@ -704,3 +698,4 @@ export const DeadlinesView: React.FC<DeadlinesViewProps> = ({ onNavigateTab }) =
     </div>
   );
 };
+
