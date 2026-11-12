@@ -62,7 +62,7 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
 
   const [inputQuery, setInputQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -71,8 +71,14 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
     } catch {}
   }, [messages]);
 
+  // Scroll ONLY the inner chat messages container, NEVER the window/page
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   }, [messages, isLoading]);
 
   const handleClearHistory = () => {
@@ -207,7 +213,10 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
       </div>
 
       {/* 2. Messages Stream */}
-      <div className="p-5 overflow-y-auto space-y-4 max-h-[380px] min-h-[220px] bg-slate-50/40">
+      <div
+        ref={chatContainerRef}
+        className="p-5 overflow-y-auto space-y-4 max-h-[380px] min-h-[220px] bg-slate-50/40"
+      >
         {messages.map((m) => {
           const isUser = m.role === 'user';
           return (
@@ -293,8 +302,6 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
             </div>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
       {/* 3. Quick Chips Suggestions */}
@@ -344,3 +351,4 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
     </div>
   );
 };
+
