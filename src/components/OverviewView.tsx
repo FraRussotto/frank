@@ -4,6 +4,8 @@ import {
   Calendar,
   MailCheck,
   FileText,
+  CalendarCheck,
+  AlertTriangle,
   ArrowRight,
   Check,
   RotateCw,
@@ -21,7 +23,9 @@ import {
   AppSettings,
   EcosystemContext,
   AgentWorkerStatus,
-  SuperAgentStatus
+  SuperAgentStatus,
+  UpcomingDeadlinesSummary,
+  DeadlineItem
 } from '../types';
 import { retrieveRelevantChunks, generateRAGAnswer } from '../services/ragEngine';
 import { AiMessageRenderer } from './AiMessageRenderer';
@@ -37,7 +41,7 @@ interface OverviewViewProps {
   showExpenses: boolean;
   agentStatus?: AgentWorkerStatus | null;
   superAgentStatus?: SuperAgentStatus | null;
-  onNavigateTab: (tab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag') => void;
+  onNavigateTab: (tab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag' | 'deadlines') => void;
   onToggleExpensePaid: (id: string) => void;
   onToggleRequestStatus: (id: string) => void;
   onSyncAll: () => void;
@@ -69,6 +73,21 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const unpaidExpenses = expenses.filter(e => !e.isPaid);
   const pendingRequests = requests.filter(r => r.status === 'pending');
   const upcomingEvents = events.slice(0, 3);
+
+  // Scadenze & Cose da Fare (Deadline Engine)
+  const [deadlinesSummary, setDeadlinesSummary] = useState<UpcomingDeadlinesSummary | null>(null);
+
+  React.useEffect(() => {
+    fetch('/api/deadlines')
+      .then(res => res.json())
+      .then(data => {
+        if (data.summary) setDeadlinesSummary(data.summary);
+      })
+      .catch(() => {});
+  }, [isSyncing]);
+
+  const imminentList = deadlinesSummary ? [...deadlinesSummary.today, ...deadlinesSummary.dueSoon, ...deadlinesSummary.overdue] : [];
+  const imminentCount = imminentList.length;
 
   const ecosystem: EcosystemContext = {
     expenses,
@@ -161,6 +180,63 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         ecosystem={ecosystem}
         onNavigateTab={onNavigateTab}
       />
+
+      {/* 2b. Preventive Alert: Proactive Deadlines & Action Items */}
+      {imminentCount > 0 && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/70 border border-amber-200/90 shadow-2xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-amber-200/60 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                <AlertTriangle className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-2">
+                  Promemoria Preventivo di Frank: {imminentCount} {imminentCount === 1 ? 'attività in scadenza' : 'attività in scadenza'}
+                  <span className="text-[10px] lowercase font-normal px-2 py-0.2 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                    prossime 72h
+                  </span>
+                </h3>
+                <p className="text-xs text-amber-800 mt-0.5">
+                  Attività operative, pagamenti e adempimenti documentali sotto monitoraggio preventivo.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => onNavigateTab('deadlines')}
+              className="flex items-center gap-1 text-xs font-bold text-amber-900 hover:text-amber-950 bg-white/80 hover:bg-white px-3 py-1.5 rounded-xl border border-amber-200 shadow-2xs self-start sm:self-auto transition-colors"
+            >
+              <span>Vedi tutte le scadenze</span>
+              <ArrowRight className="w-3.5 h-3.5 text-amber-700" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+            {imminentList.slice(0, 3).map((item) => (
+              <div
+                key={item.id}
+                onClick={() => onNavigateTab('deadlines')}
+                className="p-3 rounded-xl bg-white border border-amber-200/80 hover:border-amber-300 shadow-2xs cursor-pointer transition-all hover:translate-y-[-1px]"
+              >
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
+                    {item.daysRemaining === 0 ? 'SCADE OGGI' : item.daysRemaining === 1 ? 'Entro Domani' : `Tra ${item.daysRemaining} gg`}
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    {item.dueDate}
+                  </span>
+                </div>
+                <h4 className="text-xs font-semibold text-slate-900 line-clamp-1">
+                  {item.title}
+                </h4>
+                <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">
+                  {item.source}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 4 Summary Stat Cards (Soft Pastel) */}
       <div className={`grid gap-3 ${showExpenses ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3'}`}>

@@ -10,6 +10,7 @@ import { EmailSubagent } from './subagents/emailSubagent';
 import { CalendarSubagent } from './subagents/calendarSubagent';
 import { FinanceSubagent } from './subagents/financeSubagent';
 import { KnowledgeSubagent } from './subagents/knowledgeSubagent';
+import { deadlineEngine } from './deadlineEngine';
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync, readFileSync } from 'node:fs';
 
@@ -254,6 +255,28 @@ export class FrankSuperAgent {
       });
     }
 
+    // 4. Scadenze imminenti dal Deadline & Action Engine
+    try {
+      const { summary } = deadlineEngine.getDeadlines({ status: 'pending' });
+      const imminent = [...summary.today, ...summary.dueSoon];
+      imminent.slice(0, 4).forEach((d) => {
+        if (!priorityActions.some(p => p.title.toLowerCase() === d.title.toLowerCase())) {
+          priorityActions.push({
+            id: `dl-act-${d.id}`,
+            urgency: d.priority,
+            department: d.category === 'documento' ? 'Documentale & RAG' : (d.category === 'pagamento' ? 'Spese & Finanze' : (d.category === 'preparazione_call' ? 'Agenda & Riunioni' : 'Scadenze & Task')),
+            title: d.title,
+            description: d.description || `Scadenza: ${d.dueDate} (${d.source})`,
+            source: d.source,
+            deadline: d.dueDate,
+            linkTab: d.category === 'documento' ? 'docs-rag' : (d.category === 'pagamento' ? 'expenses' : (d.category === 'preparazione_call' ? 'email-calendar' : 'overview'))
+          });
+        }
+      });
+    } catch (err) {
+      console.warn('Briefing deadline inclusion error:', err);
+    }
+
     // Ordina: alta -> media -> bassa
     const urgencyOrder: Record<string, number> = { alta: 0, media: 1, bassa: 2 };
     priorityActions.sort((a, b) => (urgencyOrder[a.urgency] ?? 3) - (urgencyOrder[b.urgency] ?? 3));
@@ -424,8 +447,13 @@ export class FrankSuperAgent {
       q.includes('bonifico') || q.includes('cost') || q.includes('budget') ||
       q.includes('playstation') || q.includes('palestra') || q.includes('assicuraz');
 
+    const isDeadlineRelated =
+      q.includes('scadenz') || q.includes('da fare') || q.includes('entro') ||
+      q.includes('adempiment') || q.includes('termine') || q.includes('priorit') ||
+      q.includes('prossim') || q.includes('urgente') || q.includes('oggi') || q.includes('domani');
+
     const isGeneralStatus =
-      !isDocRelated && !isEmailRelated && !isCalendarRelated && !isFinanceRelated;
+      !isDocRelated && !isEmailRelated && !isCalendarRelated && !isFinanceRelated && !isDeadlineRelated;
 
     const delegations: Array<{ id: string; name: string; icon: string; detail: string }> = [];
     const contextBlocks: string[] = [];
@@ -520,6 +548,28 @@ export class FrankSuperAgent {
             .join('\n');
           contextBlocks.push(`=== 💳 DATI DAL SUBAGENTE SPESE & FINANZE ===\nSpese da saldare:\n${expText || 'Tutte le spese fisse risultano saldate.'}`);
         }
+      }
+    }
+
+    // E. Delega al Deadline & Action Engine (Scadenze & Cose da Fare trasversali)
+    if (isDeadlineRelated || isGeneralStatus) {
+      try {
+        const { deadlines, summary } = deadlineEngine.getDeadlines({ status: 'pending' });
+        if (deadlines.length > 0) {
+          delegations.push({
+            id: 'deadlines',
+            name: 'Deadline & Action Engine',
+            icon: 'Clock',
+            detail: `${summary.today.length} oggi, ${summary.dueSoon.length} a breve, ${summary.totalPending} cose da fare`
+          });
+          const deadlinesText = deadlines.slice(0, 8).map(d => {
+            const daysInfo = d.daysRemaining === 0 ? 'OGGI' : (d.daysRemaining! < 0 ? `SCADUTO da ${Math.abs(d.daysRemaining!)} gg` : `tra ${d.daysRemaining} gg (${d.dueDate})`);
+            return `- [${d.priority.toUpperCase()}] ${d.title} (Scadenza: ${daysInfo}, Categoria: ${d.category}, Fonte: ${d.source})`;
+          }).join('\n');
+          contextBlocks.push(`=== ⏳ DATI DALLO SCADENZIARIO & COSE DA FARE (DEADLINE ENGINE) ===\n${deadlinesText}`);
+        }
+      } catch (err) {
+        console.warn('Deadline Engine query error:', err);
       }
     }
 

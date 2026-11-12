@@ -200,3 +200,35 @@ export interface CopilotMessage {
   modelUsed?: string;
 }
 
+export type DeadlineCategory = 'task_operativo' | 'documento' | 'preparazione_call' | 'pagamento' | 'manuale';
+export type DeadlinePriority = 'alta' | 'media' | 'bassa';
+export type DeadlineStatus = 'pending' | 'completed' | 'dismissed';
+
+export interface DeadlineItem {
+  id: string;
+  title: string;
+  description: string;
+  dueDate: string; // YYYY-MM-DD o YYYY-MM-DDTHH:mm
+  category: DeadlineCategory;
+  priority: DeadlinePriority;
+  status: DeadlineStatus;
+  source: string;
+  sourceId?: string;
+  daysNotice: number;
+  amount?: number;
+  completedAt?: string;
+  createdAt: string;
+  daysRemaining?: number;
+  urgencyStatus?: 'overdue' | 'today' | 'due_soon' | 'upcoming';
+}
+
+export interface UpcomingDeadlinesSummary {
+  overdue: DeadlineItem[];
+  today: DeadlineItem[];
+  dueSoon: DeadlineItem[];
+  future: DeadlineItem[];
+  totalPending: number;
+  highPriorityCount: number;
+}
+
+

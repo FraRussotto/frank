@@ -6,6 +6,7 @@ import { EmailCalendarUnifiedView } from './components/EmailCalendarUnifiedView'
 import { EmailThreadData } from './components/ThreadCard';
 import { RagDocsView } from './components/RagDocsView';
 import { SuperAgentView } from './components/SuperAgentView';
+import { DeadlinesView } from './components/DeadlinesView';
 import { FlatSettingsModal } from './components/FlatSettingsModal';
 import {
   INITIAL_FIXED_EXPENSES,
@@ -50,7 +51,7 @@ function isIgnoredEventTitle(title: string): boolean {
 }
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag' | 'deadlines'>('overview');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncToast, setSyncToast] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -238,19 +239,6 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.DOCS, JSON.stringify(documents));
-    // Sincronizza istantaneamente con il Subagente Knowledge & RAG nel backend
-    fetch('/api/documents/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ documents })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status) {
-          setSuperAgentStatus(data.status);
-        }
-      })
-      .catch(err => console.warn('Errore sync documenti verso subagente:', err));
   }, [documents]);
 
   useEffect(() => {
@@ -596,6 +584,11 @@ export const App: React.FC = () => {
             onUploadDocument={handleUploadDocument}
             onDeleteDocument={handleDeleteDocument}
           />
+        )}
+
+        {/* Scadenze & Cose da Fare (Action & Deadline Engine) */}
+        {activeTab === 'deadlines' && (
+          <DeadlinesView onNavigateTab={setActiveTab} />
         )}
       </main>
 

@@ -7,6 +7,7 @@ import { autonomousAgent, getAllAnalysesMap, analyzeThreadAutonomous } from './s
 import { superAgent } from './server/orchestrator/superAgent';
 import { FinanceSubagent } from './server/orchestrator/subagents/financeSubagent';
 import { KnowledgeSubagent } from './server/orchestrator/subagents/knowledgeSubagent';
+import { deadlineEngine } from './server/orchestrator/deadlineEngine';
 import { parseDocumentBuffer } from './server/documentParser';
 
 const DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
@@ -507,7 +508,13 @@ function emailAgentPlugin() {
               }
               const buffer = Buffer.from(base64, 'base64');
               const parsed = await parseDocumentBuffer(filename, buffer);
-              res.end(JSON.stringify({ success: true, parsed }));
+              let extractedDeadlines: any[] = [];
+              try {
+                extractedDeadlines = await deadlineEngine.extractDeadlinesFromDocumentText(filename, parsed.text || '');
+              } catch (dlErr) {
+                console.warn('Deadline auto-extraction from doc error:', dlErr);
+              }
+              res.end(JSON.stringify({ success: true, parsed, extractedDeadlines }));
             } catch (err: any) {
               res.statusCode = 500;
               res.end(JSON.stringify({ error: err.message }));
@@ -676,6 +683,117 @@ function emailAgentPlugin() {
               res.end(JSON.stringify({ error: err.message }));
             }
           });
+          return;
+        }
+
+        // ================= DEADLINE & COSE DA FARE API =================
+        // GET /api/deadlines (Lista scadenze e riepilogo per scadenziario)
+        if (req.url?.startsWith('/api/deadlines') && req.method === 'GET' && !req.url.includes('/sync')) {
+          res.setHeader('Content-Type', 'application/json');
+          try {
+            const urlObj = new URL(req.url, 'http://localhost');
+            const status = urlObj.searchParams.get('status') || undefined;
+            const category = urlObj.searchParams.get('category') || undefined;
+            const query = urlObj.searchParams.get('q') || undefined;
+            const data = deadlineEngine.getDeadlines({ status, category, query });
+            res.end(JSON.stringify({ success: true, ...data }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: err.message }));
+          }
+          return;
+        }
+
+        // POST /api/deadlines (Creazione nuova scadenza / cosa da fare)
+        if (req.url === '/api/deadlines' && req.method === 'POST') {
+          let bodyStr = '';
+          req.on('data', (chunk: any) => { bodyStr += chunk; });
+          req.on('end', async () => {
+            res.setHeader('Content-Type', 'application/json');
+            try {
+              const data = JSON.parse(bodyStr || '{}');
+              if (!data.title || !data.dueDate) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'Titolo e data di scadenza sono obbligatori' }));
+                return;
+              }
+              const created = deadlineEngine.createDeadline(data);
+              const result = deadlineEngine.getDeadlines();
+              res.end(JSON.stringify({ success: true, deadline: created, ...result }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+
+        // PUT /api/deadlines (Modifica scadenza o cambio stato completato/pendente)
+        if (req.url === '/api/deadlines' && req.method === 'PUT') {
+          let bodyStr = '';
+          req.on('data', (chunk: any) => { bodyStr += chunk; });
+          req.on('end', async () => {
+            res.setHeader('Content-Type', 'application/json');
+            try {
+              const { id, updates } = JSON.parse(bodyStr || '{}');
+              if (!id) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'id scadenza obbligatorio' }));
+                return;
+              }
+              deadlineEngine.updateDeadline(id, updates || {});
+              const result = deadlineEngine.getDeadlines();
+              res.end(JSON.stringify({ success: true, ...result }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+
+        // DELETE /api/deadlines (Eliminazione scadenza)
+        if (req.url?.startsWith('/api/deadlines') && req.method === 'DELETE') {
+          let bodyStr = '';
+          req.on('data', (chunk: any) => { bodyStr += chunk; });
+          req.on('end', async () => {
+            res.setHeader('Content-Type', 'application/json');
+            try {
+              const urlObj = new URL(req.url, 'http://localhost');
+              let id = urlObj.searchParams.get('id');
+              if (!id && bodyStr) {
+                try {
+                  const p = JSON.parse(bodyStr);
+                  id = p.id;
+                } catch {}
+              }
+              if (!id) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'id scadenza obbligatorio' }));
+                return;
+              }
+              deadlineEngine.deleteDeadline(id);
+              const result = deadlineEngine.getDeadlines();
+              res.end(JSON.stringify({ success: true, ...result }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+
+        // POST /api/deadlines/sync (Sincronizzazione automatica da Email, Spese, Calendario e Documenti)
+        if (req.url === '/api/deadlines/sync' && req.method === 'POST') {
+          res.setHeader('Content-Type', 'application/json');
+          try {
+            const syncStats = await deadlineEngine.syncFromAllSubagents();
+            const result = deadlineEngine.getDeadlines();
+            res.end(JSON.stringify({ success: true, syncStats, ...result }));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: err.message }));
+          }
           return;
         }
 

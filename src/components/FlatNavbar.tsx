@@ -5,14 +5,15 @@ import {
   CreditCard,
   MailCheck,
   FileText,
+  CalendarCheck,
   RotateCw,
   Settings
 } from 'lucide-react';
 import { AppSettings } from '../types';
 
 interface FlatNavbarProps {
-  activeTab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag';
-  onTabChange: (tab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag') => void;
+  activeTab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag' | 'deadlines';
+  onTabChange: (tab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag' | 'deadlines') => void;
   onOpenSettings: () => void;
   onSyncAll: () => void;
   isSyncing: boolean;
@@ -131,6 +132,19 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
               <FileText className="w-3.5 h-3.5 text-slate-500" />
               <span>Documenti & RAG</span>
             </button>
+
+            {/* Scadenze & Cose da Fare Tab */}
+            <button
+              onClick={() => onTabChange('deadlines')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                activeTab === 'deadlines'
+                  ? 'bg-amber-50 text-amber-950 border border-amber-200/90 font-semibold shadow-2xs'
+                  : 'text-amber-800 hover:text-amber-950 hover:bg-amber-50/60'
+              }`}
+            >
+              <CalendarCheck className="w-3.5 h-3.5 text-amber-600" />
+              <span>Scadenze & Task</span>
+            </button>
           </nav>
 
           {/* Right Actions */}
@@ -169,6 +183,7 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
             ...(showExpenses ? [{ id: 'expenses', label: 'Spese', icon: CreditCard }] : []),
             { id: 'email-calendar', label: 'Email & Cal', icon: MailCheck },
             { id: 'docs-rag', label: 'Doc & RAG', icon: FileText },
+            { id: 'deadlines', label: 'Scadenze', icon: CalendarCheck },
           ].map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
