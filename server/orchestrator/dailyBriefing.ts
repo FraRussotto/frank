@@ -178,3 +178,4 @@ Sii diretto, esecutivo e fluido.`;
     fullMessageText: msg
   };
 }
+

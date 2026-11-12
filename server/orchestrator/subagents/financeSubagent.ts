@@ -30,9 +30,13 @@ export class FinanceSubagent implements ISubagent {
           frequency TEXT,
           due_day INTEGER,
           is_paid INTEGER,
+          is_auto_debit INTEGER DEFAULT 0,
           notes TEXT
         );
       `);
+      try {
+        db.exec('ALTER TABLE fixed_expenses ADD COLUMN is_auto_debit INTEGER DEFAULT 0;');
+      } catch {}
       db.close();
     } catch (e) {
       console.warn('FinanceSubagent ensureTables error:', e);
@@ -45,8 +49,8 @@ export class FinanceSubagent implements ISubagent {
       db.exec('DELETE FROM fixed_expenses');
       if (Array.isArray(expensesList) && expensesList.length > 0) {
         const stmt = db.prepare(`
-          INSERT INTO fixed_expenses (id, name, amount, category, frequency, due_day, is_paid, notes)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO fixed_expenses (id, name, amount, category, frequency, due_day, is_paid, is_auto_debit, notes)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         for (const e of expensesList) {
           stmt.run(
@@ -57,6 +61,7 @@ export class FinanceSubagent implements ISubagent {
             String(e.frequency || 'Mensile'),
             Number(e.dueDay || e.due_day || 1),
             e.isPaid || e.is_paid ? 1 : 0,
+            e.isAutoDebit || e.is_auto_debit ? 1 : 0,
             String(e.notes || '')
           );
         }
@@ -79,18 +84,20 @@ export class FinanceSubagent implements ISubagent {
 
     const currentDay = new Date().getDate();
     const unpaid = expenses.filter(e => !e.is_paid);
+    const unpaidManual = unpaid.filter(e => !e.is_auto_debit);
     const unpaidAmount = unpaid.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const unpaidManualAmount = unpaidManual.reduce((sum, e) => sum + (e.amount || 0), 0);
     const totalAmount = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
-    // Alert per spese dovute entro 5 giorni
+    // Alert per spese manuali dovute entro 5 giorni (le spese con addebito automatico non richiedono azione)
     const alerts: SubagentAlert[] = [];
-    const upcomingDue = unpaid.filter(e => e.due_day >= currentDay && e.due_day <= currentDay + 5);
+    const upcomingDue = unpaidManual.filter(e => e.due_day >= currentDay && e.due_day <= currentDay + 5);
 
     if (upcomingDue.length > 0) {
       alerts.push({
         id: 'alert-fin-due-soon',
         level: 'warning',
-        title: `${upcomingDue.length} Spese in scadenza a breve`,
+        title: `${upcomingDue.length} Spese manuali da saldare a breve`,
         message: upcomingDue.map(e => `${e.name} (€${e.amount}) il giorno ${e.due_day}`).join('; '),
         timestamp: new Date().toISOString()
       });

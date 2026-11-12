@@ -32,6 +32,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   const [category, setCategory] = useState<FixedExpense['category']>('Casa');
   const [frequency, setFrequency] = useState<FixedExpense['frequency']>('Mensile');
   const [dueDay, setDueDay] = useState('1');
+  const [isAutoDebit, setIsAutoDebit] = useState(false);
   const [notes, setNotes] = useState('');
 
   // Form states per Modifica
@@ -40,6 +41,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   const [editCategory, setEditCategory] = useState<FixedExpense['category']>('Casa');
   const [editFrequency, setEditFrequency] = useState<FixedExpense['frequency']>('Mensile');
   const [editDueDay, setEditDueDay] = useState('1');
+  const [editIsAutoDebit, setEditIsAutoDebit] = useState(false);
   const [editNotes, setEditNotes] = useState('');
 
   const totalMonthly = expenses.reduce((sum, e) => {
@@ -55,6 +57,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     .filter(e => !e.isPaid)
     .reduce((sum, e) => sum + e.amount, 0);
 
+  const totalManualToPay = expenses
+    .filter(e => !e.isPaid && !e.isAutoDebit)
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  const totalAutoDebit = expenses
+    .filter(e => e.isAutoDebit)
+    .reduce((sum, e) => sum + e.amount, 0);
+
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !amount) return;
@@ -67,12 +77,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       frequency,
       dueDay: parseInt(dueDay) || 1,
       isPaid: false,
+      isAutoDebit,
       notes: notes.trim()
     };
 
     onAddExpense(newExpense);
     setName('');
     setAmount('');
+    setIsAutoDebit(false);
     setNotes('');
     setShowAddForm(false);
   };
@@ -84,6 +96,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     setEditCategory(exp.category);
     setEditFrequency(exp.frequency);
     setEditDueDay(String(exp.dueDay));
+    setEditIsAutoDebit(Boolean(exp.isAutoDebit));
     setEditNotes(exp.notes || '');
   };
 
@@ -98,6 +111,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       category: editCategory,
       frequency: editFrequency,
       dueDay: parseInt(editDueDay) || 1,
+      isAutoDebit: editIsAutoDebit,
       notes: editNotes.trim()
     };
 
@@ -183,10 +197,10 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         </div>
 
         <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-100 shadow-xs">
-          <div className="text-xs text-amber-800 font-medium">Da Saldare</div>
-          <div className="text-2xl font-bold text-amber-800 mt-1">€ {totalToPay.toFixed(2)}</div>
+          <div className="text-xs text-amber-800 font-medium">Da Saldare Manualmente</div>
+          <div className="text-2xl font-bold text-amber-800 mt-1">€ {totalManualToPay.toFixed(2)}</div>
           <div className="text-[11px] text-amber-700 mt-0.5">
-            {expenses.filter(e => !e.isPaid).length} rimanenti
+            {expenses.filter(e => !e.isPaid && !e.isAutoDebit).length} manuali ({expenses.filter(e => e.isAutoDebit).length} addebito auto)
           </div>
         </div>
       </div>
@@ -280,6 +294,22 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-sky-500"
               />
             </div>
+          </div>
+
+          <div className="flex items-center space-x-2 pt-1 bg-white/80 p-2.5 rounded-lg border border-sky-100">
+            <input
+              type="checkbox"
+              id="editIsAutoDebit"
+              checked={editIsAutoDebit}
+              onChange={(e) => setEditIsAutoDebit(e.target.checked)}
+              className="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500"
+            />
+            <label htmlFor="editIsAutoDebit" className="text-xs font-semibold text-slate-800 cursor-pointer">
+              Addebito automatico (SDD / Domiciliazione bancaria / Carta)
+            </label>
+            <span className="text-[11px] text-slate-500">
+              — Scalata in automatico dalla banca, non genera scadenza manuale da saldare
+            </span>
           </div>
 
           <div className="flex justify-end space-x-2 pt-1">
@@ -384,6 +414,22 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             </div>
           </div>
 
+          <div className="flex items-center space-x-2 pt-1 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+            <input
+              type="checkbox"
+              id="isAutoDebit"
+              checked={isAutoDebit}
+              onChange={(e) => setIsAutoDebit(e.target.checked)}
+              className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+            />
+            <label htmlFor="isAutoDebit" className="text-xs font-semibold text-slate-800 cursor-pointer">
+              Addebito automatico (SDD / Domiciliazione bancaria / Carta)
+            </label>
+            <span className="text-[11px] text-slate-500">
+              — Scalata in automatico dalla banca, non genera scadenza manuale da saldare
+            </span>
+          </div>
+
           <div className="flex justify-end space-x-2 pt-2">
             <button
               type="button"
@@ -430,6 +476,11 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 font-medium">
                     {exp.category}
                   </span>
+                  {exp.isAutoDebit && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 font-semibold inline-flex items-center gap-1">
+                      Addebito Diretto / SDD
+                    </span>
+                  )}
                 </div>
                 <div className="text-[11px] text-slate-400 mt-0.5 flex items-center space-x-2">
                   <span>Scadenza: ogni giorno {exp.dueDay} ({exp.frequency})</span>
@@ -441,8 +492,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             <div className="flex items-center space-x-3">
               <div className="text-right">
                 <div className="text-sm font-bold text-slate-900">€ {exp.amount.toFixed(2)}</div>
-                <span className={`text-[10px] font-medium ${exp.isPaid ? 'text-emerald-700' : 'text-amber-700'}`}>
-                  {exp.isPaid ? 'Saldato' : 'In attesa'}
+                <span className={`text-[10px] font-medium ${
+                  exp.isPaid
+                    ? 'text-emerald-700'
+                    : exp.isAutoDebit
+                    ? 'text-sky-700 font-semibold'
+                    : 'text-amber-700'
+                }`}>
+                  {exp.isPaid ? 'Saldato' : exp.isAutoDebit ? 'Addebito Diretto' : 'In attesa'}
                 </span>
               </div>
 

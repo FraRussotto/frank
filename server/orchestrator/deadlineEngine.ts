@@ -403,9 +403,17 @@ export class DeadlineEngine {
         console.warn('Sync email tasks error:', err);
       }
 
-      // 2. DALLE SPESE FISSE E SCADENZE PAGAMENTO (Personali)
+      // 2. DALLE SPESE FISSE E SCADENZE PAGAMENTO (Personali - Solo pagamenti manuali, esclude addebito automatico)
       try {
-        const expenses = db.prepare('SELECT * FROM fixed_expenses WHERE is_paid = 0').all() as any[];
+        // Rimuove dalle scadenze attive eventuali spese che hanno il flag addebito automatico (non richiedono azione manuale)
+        try {
+          const autoDebitExpenses = db.prepare('SELECT id FROM fixed_expenses WHERE is_auto_debit = 1').all() as any[];
+          for (const ad of autoDebitExpenses) {
+            db.prepare('DELETE FROM deadlines WHERE source_id = ?').run(`fin-exp-${ad.id}`);
+          }
+        } catch {}
+
+        const expenses = db.prepare('SELECT * FROM fixed_expenses WHERE is_paid = 0 AND (is_auto_debit = 0 OR is_auto_debit IS NULL)').all() as any[];
         for (const e of expenses) {
           const sourceId = `fin-exp-${e.id}`;
           const existing = checkStmt.all(sourceId) as any[];

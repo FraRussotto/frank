@@ -615,6 +615,7 @@ function emailAgentPlugin() {
               frequency: r.frequency,
               dueDay: r.due_day,
               isPaid: Boolean(r.is_paid),
+              isAutoDebit: Boolean(r.is_auto_debit),
               notes: r.notes || ''
             }));
             res.end(JSON.stringify({ success: true, expenses }));
@@ -634,6 +635,9 @@ function emailAgentPlugin() {
             try {
               const { expenses } = JSON.parse(bodyStr || '{}');
               FinanceSubagent.syncExpenses(expenses || []);
+              try {
+                await deadlineEngine.syncFromAllSubagents();
+              } catch {}
               // Rigenera immediatamente il briefing esecutivo con i dati reali dell'utente
               await superAgent.generateExecutiveBriefing();
               const status = await superAgent.getStatus();

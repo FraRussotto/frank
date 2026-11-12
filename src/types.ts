@@ -6,6 +6,7 @@ export interface FixedExpense {
   frequency: 'Mensile' | 'Annuale' | 'Bimestrale';
   dueDay: number; // es. giorno 5 del mese
   isPaid: boolean;
+  isAutoDebit?: boolean; // Se addebito automatico su c/c o carta (non genera scadenza manuale)
   notes?: string;
 }
 
