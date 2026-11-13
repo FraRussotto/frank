@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 
 export const APP_ROOT = process.env.APP_ROOT || process.cwd();
 
@@ -19,6 +20,13 @@ export const LARAVEL_DIR = process.env.LARAVEL_DIR || (
     : '/Users/fra_russo/email-ai-agent'
 );
 
-export const EMAIL_DB_PATH = process.env.EMAIL_DB_PATH || path.join(LARAVEL_DIR, 'database', 'database.sqlite');
+// Percorso database email: controlla prima la cartella database locale/volume di Frank, poi il fallback su email-ai-agent
+export const EMAIL_DB_PATH = process.env.EMAIL_DB_PATH || (
+  existsSync(path.join(APP_ROOT, 'database', 'emails.sqlite'))
+    ? path.join(APP_ROOT, 'database', 'emails.sqlite')
+    : existsSync(path.join(APP_ROOT, 'database', 'database.sqlite'))
+      ? path.join(APP_ROOT, 'database', 'database.sqlite')
+      : path.join(LARAVEL_DIR, 'database', 'database.sqlite')
+);
 export const LARAVEL_ENV_PATH = process.env.LARAVEL_ENV_PATH || path.join(LARAVEL_DIR, '.env');
 

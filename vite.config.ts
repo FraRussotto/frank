@@ -20,7 +20,13 @@ const LARAVEL_DIR = process.env.LARAVEL_DIR || (
     ? '/Users/fra_russo/email-ai-agent'
     : path.join(__dirname, '..', 'email-ai-agent')
 );
-const DB_PATH = process.env.EMAIL_DB_PATH || path.join(LARAVEL_DIR, 'database', 'database.sqlite');
+const DB_PATH = process.env.EMAIL_DB_PATH || (
+  existsSync(path.join(__dirname, 'database', 'emails.sqlite'))
+    ? path.join(__dirname, 'database', 'emails.sqlite')
+    : existsSync(path.join(__dirname, 'database', 'database.sqlite'))
+      ? path.join(__dirname, 'database', 'database.sqlite')
+      : path.join(LARAVEL_DIR, 'database', 'database.sqlite')
+);
 const LARAVEL_ENV_PATH = process.env.LARAVEL_ENV_PATH || path.join(LARAVEL_DIR, '.env');
 const FRANK_DB_PATH = process.env.FRANK_DB_PATH || path.join(__dirname, 'database', 'frank_agent.sqlite');
 const UPLOADS_DOCS_DIR = process.env.UPLOADS_DOCS_DIR || path.join(__dirname, 'uploads', 'documents');

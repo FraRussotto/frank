@@ -27,5 +27,8 @@ dist-ssr
 uploads/documents/*
 !uploads/documents/.gitkeep
 
+# Sensitive Email Database (Do not commit real emails to public git)
+database/database.sqlite
+database/emails.sqlite
 
 config/telegram.json
