@@ -1,12 +1,14 @@
 version: '3.8'
 
 services:
-  frank:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: frank-second-brain
+    container_name: frank-app
     restart: unless-stopped
+    expose:
+      - "5173"
     ports:
       - "5173:5173"
     environment:
@@ -24,4 +26,5 @@ volumes:
   frank-data:
   frank-uploads:
   frank-config:
+
 
