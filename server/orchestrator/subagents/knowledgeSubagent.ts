@@ -26,7 +26,10 @@ export class KnowledgeSubagent implements ISubagent {
           title TEXT,
           category TEXT,
           chunk_count INTEGER,
-          created_at TEXT
+          created_at TEXT,
+          file_url TEXT,
+          original_filename TEXT,
+          mime_type TEXT
         );
       `);
       db.close();
@@ -41,8 +44,8 @@ export class KnowledgeSubagent implements ISubagent {
       db.exec('DELETE FROM kb_documents');
       if (Array.isArray(docsList) && docsList.length > 0) {
         const stmt = db.prepare(`
-          INSERT INTO kb_documents (id, title, category, chunk_count, created_at)
-          VALUES (?, ?, ?, ?, ?)
+          INSERT INTO kb_documents (id, title, category, chunk_count, created_at, file_url, original_filename, mime_type)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `);
         for (const d of docsList) {
           stmt.run(
@@ -50,7 +53,10 @@ export class KnowledgeSubagent implements ISubagent {
             String(d.title || 'Documento'),
             String(d.category || 'Altro'),
             Number(d.chunksCount || 0),
-            String(d.uploadedAt || new Date().toISOString())
+            String(d.uploadedAt || new Date().toISOString()),
+            d.fileUrl ? String(d.fileUrl) : null,
+            d.originalFilename ? String(d.originalFilename) : null,
+            d.mimeType ? String(d.mimeType) : null
           );
         }
       }

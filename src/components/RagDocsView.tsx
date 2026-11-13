@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, FileText, Trash2, Send, Bot, User, RotateCw, AlertCircle, FileSpreadsheet, File, Eye, X, Brain, Sparkles } from 'lucide-react';
+import { UploadCloud, FileText, Trash2, Send, Bot, User, RotateCw, AlertCircle, FileSpreadsheet, File, Eye, X, Brain, Sparkles, Download, ExternalLink, Image as ImageIcon } from 'lucide-react';
 import { StoredDocument, DocumentChunk, AppSettings, ChatMessage, EcosystemContext } from '../types';
 import { retrieveRelevantChunks, generateRAGAnswer } from '../services/ragEngine';
 import { AiMessageRenderer } from './AiMessageRenderer';
@@ -38,6 +38,7 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
   const [showPasteBox, setShowPasteBox] = useState(false);
   const [docFilter, setDocFilter] = useState<'all' | 'files' | 'compaction'>('all');
   const [viewingDoc, setViewingDoc] = useState<StoredDocument | null>(null);
+  const [modalTab, setModalTab] = useState<'preview' | 'rag-text'>('preview');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,44 +51,39 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
     for (const file of files) {
       try {
         const lowerName = file.name.toLowerCase();
-        let extractedContent = '';
-        let detectedType: string = 'txt';
 
-        if (lowerName.endsWith('.txt') || lowerName.endsWith('.md')) {
-          extractedContent = await file.text();
-          detectedType = lowerName.endsWith('.md') ? 'md' : 'txt';
-        } else {
-          // Converte in Base64 per parsing multi-formato sicuro sul backend
-          const base64Str = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const res = reader.result as string;
-              resolve(res.split(',')[1] || '');
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
+        // Converte in Base64 per salvataggio su disco locale e parsing sicuro
+        const base64Str = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const res = reader.result as string;
+            resolve(res.split(',')[1] || '');
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
 
-          const res = await fetch('/api/documents/parse', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: file.name, base64: base64Str })
-          });
+        const docId = `doc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+        const res = await fetch('/api/documents/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, base64: base64Str, docId })
+        });
 
-          if (!res.ok) {
-            throw new Error(`Errore server HTTP ${res.status}`);
-          }
-
-          const data = await res.json();
-          if (data.parsed?.text) {
-            extractedContent = data.parsed.text;
-            detectedType = data.parsed.fileType || 'doc';
-          } else {
-            throw new Error('Nessun testo estratto dal documento');
-          }
+        if (!res.ok) {
+          throw new Error(`Errore server HTTP ${res.status}`);
         }
 
-        if (extractedContent.trim()) {
+        const data = await res.json();
+        let extractedContent = data.parsed?.text || '';
+        let detectedType = data.parsed?.fileType || (lowerName.endsWith('.pdf') ? 'pdf' : 'doc');
+
+        if (!extractedContent.trim() && (lowerName.endsWith('.txt') || lowerName.endsWith('.md'))) {
+          extractedContent = await file.text();
+          detectedType = lowerName.endsWith('.md') ? 'md' : 'txt';
+        }
+
+        if (extractedContent.trim() || data.fileUrl) {
           const category =
             lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls') || lowerName.endsWith('.csv')
               ? 'Finanze'
@@ -95,18 +91,23 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
               ? 'Guida'
               : lowerName.endsWith('.docx') || lowerName.endsWith('.doc')
               ? 'Progetti'
+              : lowerName.endsWith('.png') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.webp')
+              ? 'Media'
               : 'Note';
 
           const newDoc: StoredDocument = {
-            id: `doc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            id: data.docId || docId,
             title: file.name,
             category,
             fileType: detectedType as any,
             sizeBytes: file.size,
             uploadedAt: new Date().toISOString(),
-            content: extractedContent,
+            content: extractedContent || `File ${file.name} archiviato per consultazione visiva e download.`,
             chunksCount: 0,
-            tags: [detectedType.toUpperCase()]
+            tags: [detectedType.toUpperCase()],
+            fileUrl: data.fileUrl || `/api/documents/raw/${docId}`,
+            originalFilename: file.name,
+            mimeType: data.mimeType
           };
 
           onUploadDocument(newDoc);
@@ -140,26 +141,56 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
     if (lower.endsWith('.csv') || doc.fileType === 'csv') {
       return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">CSV</span>;
     }
+    if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.webp') || doc.fileType === 'image') {
+      return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200">IMG</span>;
+    }
     return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-700 border border-slate-200">TESTO</span>;
   };
 
-  const handleAddQuickNote = (e: React.FormEvent) => {
+  const handleAddQuickNote = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickTitle.trim() || !quickText.trim()) return;
 
-    const newDoc: StoredDocument = {
-      id: `doc-${Date.now()}`,
-      title: quickTitle.trim().endsWith('.md') ? quickTitle.trim() : `${quickTitle.trim()}.md`,
-      category: 'Note',
-      fileType: 'md',
-      sizeBytes: new Blob([quickText]).size,
-      uploadedAt: new Date().toISOString(),
-      content: quickText.trim(),
-      chunksCount: 0,
-      tags: ['Nota']
-    };
+    const titleWithExt = quickTitle.trim().endsWith('.md') ? quickTitle.trim() : `${quickTitle.trim()}.md`;
+    const docId = `doc-${Date.now()}`;
+    const base64Str = btoa(unescape(encodeURIComponent(quickText.trim())));
 
-    onUploadDocument(newDoc);
+    try {
+      const res = await fetch('/api/documents/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: titleWithExt, base64: base64Str, docId })
+      });
+      const data = await res.json();
+      const newDoc: StoredDocument = {
+        id: docId,
+        title: titleWithExt,
+        category: 'Note',
+        fileType: 'md',
+        sizeBytes: new Blob([quickText]).size,
+        uploadedAt: new Date().toISOString(),
+        content: quickText.trim(),
+        chunksCount: 0,
+        tags: ['Nota'],
+        fileUrl: data?.fileUrl || `/api/documents/raw/${docId}`,
+        originalFilename: titleWithExt,
+        mimeType: 'text/markdown; charset=utf-8'
+      };
+      onUploadDocument(newDoc);
+    } catch {
+      onUploadDocument({
+        id: docId,
+        title: titleWithExt,
+        category: 'Note',
+        fileType: 'md',
+        sizeBytes: new Blob([quickText]).size,
+        uploadedAt: new Date().toISOString(),
+        content: quickText.trim(),
+        chunksCount: 0,
+        tags: ['Nota']
+      });
+    }
+
     setQuickTitle('');
     setQuickText('');
     setShowPasteBox(false);
@@ -394,14 +425,28 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center space-x-1 shrink-0">
+                    {doc.fileUrl && (
+                      <a
+                        href={doc.fileUrl}
+                        download={doc.originalFilename || doc.title}
+                        onClick={(e) => e.stopPropagation()}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-1 text-slate-400 hover:text-emerald-600 transition-colors"
+                        title="Scarica file originale"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </a>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setViewingDoc(doc);
+                        setModalTab(doc.fileUrl && (doc.title.toLowerCase().endsWith('.pdf') || doc.fileType === 'pdf') ? 'preview' : 'rag-text');
                       }}
                       className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
-                      title="Leggi contenuto"
+                      title="Visualizza anteprima o testo RAG"
                     >
                       <Eye className="w-3.5 h-3.5" />
                     </button>
@@ -409,6 +454,7 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
+                        fetch(`/api/documents/${doc.id}`, { method: 'DELETE' }).catch(() => {});
                         onDeleteDocument(doc.id);
                       }}
                       className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
@@ -517,46 +563,168 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
 
       </div>
 
-      {/* Modal Visualizzatore Documento / Compaction */}
-      {viewingDoc && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-              <div className="flex items-center space-x-2.5 truncate mr-2">
-                {getFormatBadge(viewingDoc)}
-                <div className="truncate">
-                  <h3 className="font-semibold text-slate-800 text-sm truncate">{viewingDoc.title}</h3>
-                  <p className="text-[11px] text-slate-400">
-                    {viewingDoc.category} • {(viewingDoc.sizeBytes / 1024).toFixed(1)} KB • Indicizzato nel RAG
-                  </p>
+      {/* Modal Visualizzatore Documento / Compaction / File Originale */}
+      {viewingDoc && (() => {
+        const isPdf = viewingDoc.title.toLowerCase().endsWith('.pdf') || viewingDoc.fileType === 'pdf';
+        const isImage = ['png', 'jpg', 'jpeg', 'webp'].some(ext => viewingDoc.title.toLowerCase().endsWith('.' + ext)) || viewingDoc.fileType === 'image';
+        const hasFileUrl = Boolean(viewingDoc.fileUrl);
+
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+            <div className={`bg-white rounded-2xl border border-slate-200 shadow-2xl w-full ${
+              isPdf && modalTab === 'preview' ? 'max-w-5xl h-[92vh]' : 'max-w-3xl max-h-[88vh]'
+            } flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150`}>
+              
+              {/* Modal Header */}
+              <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
+                <div className="flex items-center space-x-2.5 truncate mr-3">
+                  <div className="shrink-0">{getFormatBadge(viewingDoc)}</div>
+                  <div className="truncate">
+                    <h3 className="font-semibold text-slate-800 text-sm truncate">{viewingDoc.title}</h3>
+                    <p className="text-[11px] text-slate-400">
+                      {viewingDoc.category} • {(viewingDoc.sizeBytes / 1024).toFixed(1)} KB • {hasFileUrl ? 'Copia originale su disco' : 'Testo RAG'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-1.5 shrink-0">
+                  {hasFileUrl && (
+                    <>
+                      <a
+                        href={viewingDoc.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hidden sm:flex items-center gap-1 text-[11px] font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg transition-colors"
+                        title="Apri a schermo intero in nuova scheda"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Nuova scheda</span>
+                      </a>
+                      <a
+                        href={viewingDoc.fileUrl}
+                        download={viewingDoc.originalFilename || viewingDoc.title}
+                        className="flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors"
+                        title="Scarica file originale"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Scarica</span>
+                      </a>
+                    </>
+                  )}
+                  <button
+                    onClick={() => setViewingDoc(null)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
-              <button
-                onClick={() => setViewingDoc(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div className="p-5 overflow-y-auto flex-1 text-xs leading-relaxed text-slate-700 space-y-3 bg-white">
-              <AiMessageRenderer content={viewingDoc.content} isUser={false} />
-            </div>
+              {/* Sub-tabs if fileUrl is present */}
+              {hasFileUrl && (
+                <div className="px-5 py-2 bg-slate-50/50 border-b border-slate-100 flex items-center space-x-2 shrink-0 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setModalTab('preview')}
+                    className={`px-3 py-1 rounded-lg font-medium transition-colors ${
+                      modalTab === 'preview'
+                        ? 'bg-white text-indigo-700 shadow-2xs border border-indigo-200'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    {isPdf ? '📄 Visualizzatore PDF Integrato' : isImage ? '🖼️ Anteprima Immagine' : '📁 File Originale'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalTab('rag-text')}
+                    className={`px-3 py-1 rounded-lg font-medium transition-colors ${
+                      modalTab === 'rag-text'
+                        ? 'bg-white text-indigo-700 shadow-2xs border border-indigo-200'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    🧠 Testo Estratto RAG (Indicizzato per Frank)
+                  </button>
+                </div>
+              )}
 
-            <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs">
-              <span className="text-[11px] text-slate-500">
-                Disponibile come fonte di memoria per tutte le richieste a Frank Copilot.
-              </span>
-              <button
-                onClick={() => setViewingDoc(null)}
-                className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-medium text-xs transition-colors"
-              >
-                Chiudi
-              </button>
+              {/* Modal Body */}
+              <div className="flex-1 overflow-y-auto bg-white flex flex-col">
+                {hasFileUrl && modalTab === 'preview' ? (
+                  isPdf ? (
+                    <div className="flex-1 w-full h-full min-h-[550px] bg-slate-100">
+                      <iframe
+                        src={viewingDoc.fileUrl}
+                        title={viewingDoc.title}
+                        className="w-full h-full min-h-[550px] border-0"
+                      />
+                    </div>
+                  ) : isImage ? (
+                    <div className="flex-1 p-6 flex flex-col items-center justify-center bg-slate-50/50">
+                      <img
+                        src={viewingDoc.fileUrl}
+                        alt={viewingDoc.title}
+                        className="max-h-[580px] max-w-full rounded-xl shadow-md object-contain border border-slate-200"
+                      />
+                      <p className="mt-3 text-xs text-slate-500 font-mono">
+                        {viewingDoc.originalFilename || viewingDoc.title} • {(viewingDoc.sizeBytes / 1024).toFixed(1)} KB
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-6 space-y-4">
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-xs">
+                            {getFormatBadge(viewingDoc)}
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-slate-800 text-sm">{viewingDoc.title}</h4>
+                            <p className="text-xs text-slate-500">File originale conservato sul server locale • {(viewingDoc.sizeBytes / 1024).toFixed(1)} KB</p>
+                          </div>
+                        </div>
+                        <a
+                          href={viewingDoc.fileUrl}
+                          download={viewingDoc.originalFilename || viewingDoc.title}
+                          className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs flex items-center gap-1.5 transition-colors shadow-xs"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Scarica Originale</span>
+                        </a>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Contenuto Testuale Estratto:</h4>
+                        <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-200 text-xs leading-relaxed max-h-[380px] overflow-y-auto">
+                          <AiMessageRenderer content={viewingDoc.content} isUser={false} />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <div className="p-6 overflow-y-auto text-xs leading-relaxed text-slate-700 space-y-3">
+                    <AiMessageRenderer content={viewingDoc.content} isUser={false} />
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs shrink-0">
+                <span className="text-[11px] text-slate-500">
+                  {hasFileUrl
+                    ? 'File originale archiviato in locale & testo indicizzato per Frank Copilot.'
+                    : 'Disponibile come fonte di memoria per tutte le richieste a Frank Copilot.'}
+                </span>
+                <button
+                  onClick={() => setViewingDoc(null)}
+                  className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-medium text-xs transition-colors"
+                >
+                  Chiudi
+                </button>
+              </div>
+
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </div>
   );

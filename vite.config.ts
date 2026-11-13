@@ -1,7 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { exec } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, unlinkSync, createReadStream } from 'node:fs';
 import zlib from 'node:zlib';
 import { autonomousAgent, getAllAnalysesMap, analyzeThreadAutonomous } from './server/autonomousAgent';
 import { superAgent } from './server/orchestrator/superAgent';
@@ -14,6 +15,10 @@ import { parseDocumentBuffer } from './server/documentParser';
 const DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
 const LARAVEL_DIR = '/Users/fra_russo/email-ai-agent';
 const LARAVEL_ENV_PATH = '/Users/fra_russo/email-ai-agent/.env';
+const UPLOADS_DOCS_DIR = path.join(__dirname, 'uploads', 'documents');
+if (!existsSync(UPLOADS_DOCS_DIR)) {
+  mkdirSync(UPLOADS_DOCS_DIR, { recursive: true });
+}
 
 function getAiApiKey(): string {
   if (existsSync(LARAVEL_ENV_PATH)) {
@@ -494,20 +499,34 @@ function emailAgentPlugin() {
           return;
         }
 
-        // POST /api/documents/parse (Estrae testo strutturato da PDF, Word, Excel, CSV, JSON, ecc.)
+        // POST /api/documents/parse (Estrae testo strutturato da file e salva originale su disco)
         if (req.url === '/api/documents/parse' && req.method === 'POST') {
           let bodyStr = '';
           req.on('data', (chunk: any) => { bodyStr += chunk; });
           req.on('end', async () => {
             res.setHeader('Content-Type', 'application/json');
             try {
-              const { filename, base64 } = JSON.parse(bodyStr || '{}');
+              const { filename, base64, docId } = JSON.parse(bodyStr || '{}');
               if (!filename || !base64) {
                 res.statusCode = 400;
                 res.end(JSON.stringify({ error: 'filename e base64 sono obbligatori' }));
                 return;
               }
               const buffer = Buffer.from(base64, 'base64');
+
+              // Salva copia originale del file su disco
+              const ext = path.extname(filename).toLowerCase();
+              const baseOnly = path.basename(filename, ext).replace(/[^a-zA-Z0-9._-]/g, '_');
+              const safeFilename = `${baseOnly}${ext}`;
+              const fileId = docId || `doc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+              const storedFileName = `${fileId}___${safeFilename}`;
+              const storedFilePath = path.join(UPLOADS_DOCS_DIR, storedFileName);
+              try {
+                writeFileSync(storedFilePath, buffer);
+              } catch (writeErr) {
+                console.warn('Errore salvataggio file originale su disco:', writeErr);
+              }
+
               const parsed = await parseDocumentBuffer(filename, buffer);
               let extractedDeadlines: any[] = [];
               try {
@@ -515,12 +534,96 @@ function emailAgentPlugin() {
               } catch (dlErr) {
                 console.warn('Deadline auto-extraction from doc error:', dlErr);
               }
-              res.end(JSON.stringify({ success: true, parsed, extractedDeadlines }));
+
+              const mimeMap: Record<string, string> = {
+                '.pdf': 'application/pdf',
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.webp': 'image/webp',
+                '.txt': 'text/plain; charset=utf-8',
+                '.md': 'text/markdown; charset=utf-8',
+                '.csv': 'text/csv; charset=utf-8',
+                '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                '.doc': 'application/msword',
+                '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                '.xls': 'application/vnd.ms-excel',
+                '.json': 'application/json'
+              };
+
+              res.end(JSON.stringify({
+                success: true,
+                docId: fileId,
+                fileUrl: `/api/documents/raw/${fileId}`,
+                originalFilename: filename,
+                mimeType: mimeMap[ext] || 'application/octet-stream',
+                sizeBytes: buffer.length,
+                parsed,
+                extractedDeadlines
+              }));
             } catch (err: any) {
               res.statusCode = 500;
               res.end(JSON.stringify({ error: err.message }));
             }
           });
+          return;
+        }
+
+        // GET /api/documents/raw/:id (Stream e visualizzazione nativa del file originale)
+        if (req.url && req.url.startsWith('/api/documents/raw/') && req.method === 'GET') {
+          const targetId = req.url.split('?')[0].replace('/api/documents/raw/', '').trim();
+          if (!targetId) {
+            res.statusCode = 400;
+            res.end('ID documento mancante');
+            return;
+          }
+
+          const files = existsSync(UPLOADS_DOCS_DIR) ? readdirSync(UPLOADS_DOCS_DIR) : [];
+          const matchedFile = files.find(f => f.startsWith(`${targetId}___`) || f === targetId);
+
+          if (!matchedFile) {
+            res.statusCode = 404;
+            res.end('File originale non trovato');
+            return;
+          }
+
+          const fullPath = path.join(UPLOADS_DOCS_DIR, matchedFile);
+          const ext = path.extname(matchedFile).toLowerCase();
+          const mimeMap: Record<string, string> = {
+            '.pdf': 'application/pdf',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.webp': 'image/webp',
+            '.txt': 'text/plain; charset=utf-8',
+            '.md': 'text/markdown; charset=utf-8',
+            '.csv': 'text/csv; charset=utf-8',
+            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            '.doc': 'application/msword',
+            '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            '.xls': 'application/vnd.ms-excel',
+            '.json': 'application/json'
+          };
+          const originalName = matchedFile.includes('___') ? matchedFile.split('___')[1] : matchedFile;
+          res.setHeader('Content-Type', mimeMap[ext] || 'application/octet-stream');
+          res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(originalName)}"`);
+          res.setHeader('Cache-Control', 'public, max-age=3600');
+          createReadStream(fullPath).pipe(res);
+          return;
+        }
+
+        // DELETE /api/documents/:id (Elimina file originale dal disco)
+        if (req.url && req.url.startsWith('/api/documents/') && req.method === 'DELETE') {
+          const targetId = req.url.split('?')[0].replace('/api/documents/', '').trim();
+          if (targetId && existsSync(UPLOADS_DOCS_DIR)) {
+            const files = readdirSync(UPLOADS_DOCS_DIR);
+            const matchedFiles = files.filter(f => f.startsWith(`${targetId}___`) || f === targetId);
+            for (const mf of matchedFiles) {
+              try { unlinkSync(path.join(UPLOADS_DOCS_DIR, mf)); } catch {}
+            }
+          }
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ success: true }));
           return;
         }
 

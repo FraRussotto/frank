@@ -100,7 +100,15 @@ export async function parseDocumentBuffer(
     }
   }
 
-  // 6. Testo semplice / Markdown
+  // 6. Immagini (.png, .jpg, .jpeg, .webp)
+  if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.webp')) {
+    return {
+      text: `### Immagine archiviata: ${filename}\nFile immagine conservato per consultazione e anteprima visiva diretta.`,
+      fileType: 'image' as any
+    };
+  }
+
+  // 7. Testo semplice / Markdown
   const text = buffer.toString('utf-8');
   return {
     text: text.trim(),

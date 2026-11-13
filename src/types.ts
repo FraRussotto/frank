@@ -54,6 +54,9 @@ export interface StoredDocument {
   content: string;
   chunksCount: number;
   tags: string[];
+  fileUrl?: string;
+  originalFilename?: string;
+  mimeType?: string;
 }
 
 export interface RetrievedChunk {
