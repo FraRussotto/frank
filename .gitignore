@@ -23,3 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
+# Uploads
+uploads/documents/*
+!uploads/documents/.gitkeep
+
+

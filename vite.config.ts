@@ -15,10 +15,15 @@ import { telegramBot } from './server/telegram/telegramBot';
 import { initTelegramScheduler } from './server/telegram/scheduler';
 import { saveTelegramConfig, loadTelegramConfig } from './server/telegram/config';
 
-const DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
-const LARAVEL_DIR = '/Users/fra_russo/email-ai-agent';
-const LARAVEL_ENV_PATH = '/Users/fra_russo/email-ai-agent/.env';
-const UPLOADS_DOCS_DIR = path.join(__dirname, 'uploads', 'documents');
+const LARAVEL_DIR = process.env.LARAVEL_DIR || (
+  existsSync('/Users/fra_russo/email-ai-agent')
+    ? '/Users/fra_russo/email-ai-agent'
+    : path.join(__dirname, '..', 'email-ai-agent')
+);
+const DB_PATH = process.env.EMAIL_DB_PATH || path.join(LARAVEL_DIR, 'database', 'database.sqlite');
+const LARAVEL_ENV_PATH = process.env.LARAVEL_ENV_PATH || path.join(LARAVEL_DIR, '.env');
+const FRANK_DB_PATH = process.env.FRANK_DB_PATH || path.join(__dirname, 'database', 'frank_agent.sqlite');
+const UPLOADS_DOCS_DIR = process.env.UPLOADS_DOCS_DIR || path.join(__dirname, 'uploads', 'documents');
 if (!existsSync(UPLOADS_DOCS_DIR)) {
   mkdirSync(UPLOADS_DOCS_DIR, { recursive: true });
 }
@@ -66,6 +71,7 @@ function emailAgentPlugin() {
       // Avvia l'Agente Autonomo e il Super Agente Coordinatore di Frank in background
       autonomousAgent.start();
       superAgent.startHeartbeat(60 * 1000);
+      telegramBot.initBot();
       initTelegramScheduler();
 
       // Polling automatico in background ogni 5 minuti a partire da 1 novembre
@@ -763,7 +769,7 @@ function emailAgentPlugin() {
           res.setHeader('Content-Type', 'application/json');
           try {
             const { DatabaseSync } = await import('node:sqlite');
-            const frankDb = new DatabaseSync('/Users/fra_russo/Frank/database/frank_agent.sqlite', { readOnly: true });
+            const frankDb = new DatabaseSync(FRANK_DB_PATH, { readOnly: true });
             const rows = frankDb.prepare('SELECT * FROM fixed_expenses ORDER BY due_day ASC').all() as any[];
             frankDb.close();
             const expenses = rows.map(r => ({

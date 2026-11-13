@@ -2,7 +2,7 @@ import { ISubagent, SubagentMeta, SubagentAlert } from '../types';
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync } from 'node:fs';
 
-const FRANK_DB_PATH = '/Users/fra_russo/Frank/database/frank_agent.sqlite';
+import { FRANK_DB_PATH } from '../../paths';
 
 export class KnowledgeSubagent implements ISubagent {
   public id = 'knowledge';

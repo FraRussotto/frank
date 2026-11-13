@@ -2,7 +2,7 @@ import { ISubagent, SubagentMeta, SubagentAlert } from '../types';
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync } from 'node:fs';
 
-const EMAIL_DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
+import { EMAIL_DB_PATH } from '../../paths';
 
 export class CalendarSubagent implements ISubagent {
   public id = 'calendar';

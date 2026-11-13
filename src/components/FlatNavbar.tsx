@@ -1,4 +1,5 @@
 import React from 'react';
+import { NavLink, Link } from 'react-router-dom';
 import {
   LayoutDashboard,
   Brain,
@@ -13,8 +14,6 @@ import {
 import { AppSettings } from '../types';
 
 interface FlatNavbarProps {
-  activeTab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag' | 'deadlines';
-  onTabChange: (tab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag' | 'deadlines') => void;
   onOpenSettings: () => void;
   onOpenTelegram?: () => void;
   onSyncAll: () => void;
@@ -26,8 +25,6 @@ interface FlatNavbarProps {
 }
 
 export const FlatNavbar: React.FC<FlatNavbarProps> = ({
-  activeTab,
-  onTabChange,
   onOpenSettings,
   onOpenTelegram,
   onSyncAll,
@@ -37,120 +34,137 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
   showExpenses
 }) => {
   return (
-    <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/80">
+    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-2xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
           
-          {/* Logo Brand (Soft Pastel) */}
-          <div
-            onClick={() => onTabChange('overview')}
-            className="flex items-center space-x-2.5 cursor-pointer"
+          {/* Logo Brand */}
+          <Link
+            to="/"
+            className="flex items-center space-x-2.5 group cursor-pointer select-none"
           >
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-xs">
+            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-xs group-hover:bg-indigo-700 transition-colors">
               F
             </div>
-            <div className="flex items-center space-x-2">
-              <span className="font-bold text-sm tracking-tight text-slate-900">Frank</span>
-              <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
-                Second Brain
+            <div className="flex items-center space-x-1.5">
+              <span className="font-bold text-sm tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors">
+                Frank
+              </span>
+              <span className="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200/60 hidden sm:inline">
+                Brain
               </span>
             </div>
-          </div>
+          </Link>
 
-          {/* Navigation Links (Flat Soft Tabs) */}
+          {/* Navigation Tabs (Sleek, De-cluttered & Clean) */}
           <nav className="hidden md:flex items-center space-x-1">
-            <button
-              onClick={() => onTabChange('overview')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                activeTab === 'overview'
-                  ? 'bg-slate-100 text-slate-900 font-semibold'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-              }`}
+            
+            {/* Panoramica */}
+            <NavLink
+              to="/"
+              end
+              className={({ isActive }) =>
+                `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  isActive
+                    ? 'bg-slate-100 text-slate-900 font-semibold shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`
+              }
             >
               <LayoutDashboard className="w-3.5 h-3.5 text-slate-500" />
               <span>Panoramica</span>
-            </button>
+            </NavLink>
 
-            {/* Super Agente Tab */}
-            <button
-              onClick={() => onTabChange('super-agent')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                activeTab === 'super-agent'
-                  ? 'bg-indigo-50 text-indigo-900 border border-indigo-200/80 font-semibold shadow-2xs'
-                  : 'text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50/50'
-              }`}
+            {/* Super Agente */}
+            <NavLink
+              to="/agente"
+              className={({ isActive }) =>
+                `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  isActive
+                    ? 'bg-indigo-50 text-indigo-900 border border-indigo-200/90 font-semibold shadow-2xs'
+                    : 'text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50/50'
+                }`
+              }
             >
               <Brain className="w-3.5 h-3.5 text-indigo-600" />
               <span>Super Agente</span>
-              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-700 font-bold uppercase tracking-tight">
-                Core
-              </span>
-            </button>
+            </NavLink>
 
-            {showExpenses && (
-              <button
-                onClick={() => onTabChange('expenses')}
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  activeTab === 'expenses'
-                    ? 'bg-slate-100 text-slate-900 font-semibold'
-                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                }`}
-              >
-                <CreditCard className="w-3.5 h-3.5 text-slate-500" />
-                <span>Spese Fisse</span>
-                {unpaidExpensesCount > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-medium">
-                    {unpaidExpensesCount}
-                  </span>
-                )}
-              </button>
-            )}
-
-            {/* Unified Email & Calendar Tab */}
-            <button
-              onClick={() => onTabChange('email-calendar')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                activeTab === 'email-calendar'
-                  ? 'bg-slate-100 text-slate-900 font-semibold'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-              }`}
+            {/* Lavoro (Email & Calendario) */}
+            <NavLink
+              to="/lavoro"
+              className={({ isActive }) =>
+                `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  isActive
+                    ? 'bg-slate-100 text-slate-900 font-semibold shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`
+              }
             >
               <MailCheck className="w-3.5 h-3.5 text-slate-500" />
-              <span>Email & Calendario</span>
+              <span>Lavoro</span>
               {pendingRequestsCount > 0 && (
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-sky-50 text-sky-700 border border-sky-200 font-medium">
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-sky-100 text-sky-800 font-medium">
                   {pendingRequestsCount}
                 </span>
               )}
-            </button>
+            </NavLink>
 
-            <button
-              onClick={() => onTabChange('docs-rag')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                activeTab === 'docs-rag'
-                  ? 'bg-slate-100 text-slate-900 font-semibold'
-                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5 text-slate-500" />
-              <span>Documenti & RAG</span>
-            </button>
+            {/* Spese */}
+            {showExpenses && (
+              <NavLink
+                to="/spese"
+                className={({ isActive }) =>
+                  `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    isActive
+                      ? 'bg-slate-100 text-slate-900 font-semibold shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`
+                }
+              >
+                <CreditCard className="w-3.5 h-3.5 text-slate-500" />
+                <span>Spese</span>
+                {unpaidExpensesCount > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-900 font-medium">
+                    {unpaidExpensesCount}
+                  </span>
+                )}
+              </NavLink>
+            )}
 
-            {/* Scadenze Personali Tab */}
-            <button
-              onClick={() => onTabChange('deadlines')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                activeTab === 'deadlines'
-                  ? 'bg-amber-50 text-amber-950 border border-amber-200/90 font-semibold shadow-2xs'
-                  : 'text-amber-800 hover:text-amber-950 hover:bg-amber-50/60'
-              }`}
+            {/* Scadenze */}
+            <NavLink
+              to="/scadenze"
+              className={({ isActive }) =>
+                `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  isActive
+                    ? 'bg-amber-50 text-amber-950 border border-amber-200/90 font-semibold shadow-2xs'
+                    : 'text-amber-800 hover:text-amber-950 hover:bg-amber-50/60'
+                }`
+              }
             >
               <CalendarCheck className="w-3.5 h-3.5 text-amber-600" />
               <span>Scadenze</span>
-            </button>
+            </NavLink>
+
+            {/* Documenti & RAG */}
+            <NavLink
+              to="/documenti"
+              className={({ isActive }) =>
+                `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  isActive
+                    ? 'bg-slate-100 text-slate-900 font-semibold shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`
+              }
+            >
+              <FileText className="w-3.5 h-3.5 text-slate-500" />
+              <span>Documenti</span>
+            </NavLink>
+
           </nav>
 
-          {/* Right Actions */}
+          {/* Right Actions (Spaced & Balanced) */}
           <div className="flex items-center space-x-2">
             
             {/* Sync Button */}
@@ -162,7 +176,7 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
             >
               <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-sky-600' : 'text-slate-500'}`} />
               <span className="hidden sm:inline">
-                {isSyncing ? 'Sincronizzazione...' : 'Sincronizza'}
+                {isSyncing ? 'In sync...' : 'Sincronizza'}
               </span>
             </button>
 
@@ -174,7 +188,7 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
                 title="Configura Bot Telegram e notifiche del mattino"
               >
                 <Send className="w-3.5 h-3.5 -rotate-12 translate-x-0.5" />
-                <span className="hidden sm:inline">Telegram</span>
+                <span className="hidden lg:inline">Telegram</span>
               </button>
             )}
 
@@ -193,26 +207,28 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
         {/* Mobile Navigation bar */}
         <div className="md:hidden flex items-center space-x-1 overflow-x-auto py-2 border-t border-slate-100">
           {[
-            { id: 'overview', label: 'Panoramica', icon: LayoutDashboard },
-            { id: 'super-agent', label: 'Super Agente', icon: Brain },
-            ...(showExpenses ? [{ id: 'expenses', label: 'Spese', icon: CreditCard }] : []),
-            { id: 'email-calendar', label: 'Email & Cal', icon: MailCheck },
-            { id: 'docs-rag', label: 'Doc & RAG', icon: FileText },
-            { id: 'deadlines', label: 'Scadenze', icon: CalendarCheck },
+            { to: '/', label: 'Panoramica', icon: LayoutDashboard, end: true },
+            { to: '/agente', label: 'Super Agente', icon: Brain },
+            { to: '/lavoro', label: 'Lavoro', icon: MailCheck },
+            ...(showExpenses ? [{ to: '/spese', label: 'Spese', icon: CreditCard }] : []),
+            { to: '/scadenze', label: 'Scadenze', icon: CalendarCheck },
+            { to: '/documenti', label: 'Documenti', icon: FileText },
           ].map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id;
             return (
-              <button
-                key={item.id}
-                onClick={() => onTabChange(item.id as any)}
-                className={`flex items-center space-x-1 px-2.5 py-1 rounded-md text-xs whitespace-nowrap ${
-                  isActive ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-slate-500'
-                }`}
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `flex items-center space-x-1 px-2.5 py-1 rounded-md text-xs whitespace-nowrap transition-colors ${
+                    isActive ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-slate-500 hover:text-slate-800'
+                  }`
+                }
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span>{item.label}</span>
-              </button>
+              </NavLink>
             );
           })}
         </div>

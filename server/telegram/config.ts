@@ -4,19 +4,38 @@ import path from 'node:path';
 export interface TelegramConfig {
   botToken: string;
   chatId: string;
+  allowedChatIds?: string[];
   dailyBriefingEnabled: boolean;
   dailyBriefingTime: string; // HH:mm format, e.g. "08:30"
   botUsername?: string;
 }
 
-const CONFIG_FILE = path.join(process.cwd(), 'config', 'telegram.json');
+const CONFIG_FILE = process.env.TELEGRAM_CONFIG_PATH || path.join(process.cwd(), 'config', 'telegram.json');
 
 const DEFAULT_CONFIG: TelegramConfig = {
   botToken: process.env.TELEGRAM_BOT_TOKEN || '',
   chatId: process.env.TELEGRAM_CHAT_ID || '',
+  allowedChatIds: [],
   dailyBriefingEnabled: true,
   dailyBriefingTime: '08:30'
 };
+
+export function getAllowedChatIds(config: TelegramConfig): string[] {
+  const set = new Set<string>();
+  if (config.chatId && config.chatId.trim()) {
+    config.chatId.split(',').forEach(id => {
+      const clean = id.trim();
+      if (clean) set.add(clean);
+    });
+  }
+  if (Array.isArray(config.allowedChatIds)) {
+    config.allowedChatIds.forEach(id => {
+      const clean = String(id).trim();
+      if (clean) set.add(clean);
+    });
+  }
+  return Array.from(set);
+}
 
 export function loadTelegramConfig(): TelegramConfig {
   try {
@@ -50,3 +69,4 @@ export function saveTelegramConfig(updates: Partial<TelegramConfig>): TelegramCo
 
   return updated;
 }
+

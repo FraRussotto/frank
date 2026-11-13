@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { FlatNavbar } from './components/FlatNavbar';
 import { OverviewView } from './components/OverviewView';
 import { ExpensesView } from './components/ExpensesView';
@@ -52,7 +53,20 @@ function isIgnoredEventTitle(title: string): boolean {
 }
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag' | 'deadlines'>('overview');
+  const navigate = useNavigate();
+
+  const handleNavigateTab = (tab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag' | 'deadlines') => {
+    const routeMap: Record<string, string> = {
+      'overview': '/',
+      'super-agent': '/agente',
+      'expenses': '/spese',
+      'email-calendar': '/lavoro',
+      'docs-rag': '/documenti',
+      'deadlines': '/scadenze'
+    };
+    navigate(routeMap[tab] || '/');
+  };
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -503,8 +517,6 @@ export const App: React.FC = () => {
 
       {/* Flat Navbar */}
       <FlatNavbar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenTelegram={() => setIsTelegramModalOpen(true)}
         onSyncAll={handleSyncAll}
@@ -515,90 +527,127 @@ export const App: React.FC = () => {
         showExpenses={showExpenses}
       />
 
-      {/* Main Body */}
+      {/* Main Body with Real Routing */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'overview' && (
-          <OverviewView
-            expenses={showExpenses ? expenses : []}
-            events={events}
-            requests={requests}
-            documents={documents}
-            chunks={chunks}
-            settings={settings}
-            showExpenses={showExpenses}
-            agentStatus={agentStatus}
-            superAgentStatus={superAgentStatus}
-            onNavigateTab={setActiveTab}
-            onToggleExpensePaid={handleToggleExpensePaid}
-            onToggleRequestStatus={handleToggleRequestStatus}
-            onSyncAll={handleSyncAll}
-            isSyncing={isSyncing}
-            onSaveCompaction={handleUploadDocument}
+        <Routes>
+          {/* Panoramica */}
+          <Route
+            path="/"
+            element={
+              <OverviewView
+                expenses={showExpenses ? expenses : []}
+                events={events}
+                requests={requests}
+                documents={documents}
+                chunks={chunks}
+                settings={settings}
+                showExpenses={showExpenses}
+                agentStatus={agentStatus}
+                superAgentStatus={superAgentStatus}
+                onNavigateTab={handleNavigateTab}
+                onToggleExpensePaid={handleToggleExpensePaid}
+                onToggleRequestStatus={handleToggleRequestStatus}
+                onSyncAll={handleSyncAll}
+                isSyncing={isSyncing}
+                onSaveCompaction={handleUploadDocument}
+              />
+            }
           />
-        )}
+          <Route path="/panoramica" element={<Navigate to="/" replace />} />
+          <Route path="/overview" element={<Navigate to="/" replace />} />
 
-        {/* Super Agente Coordinator Tab */}
-        {activeTab === 'super-agent' && (
-          <SuperAgentView
-            status={superAgentStatus}
-            onRefreshAll={handleOrchestrateAll}
-            onRunSubagent={handleRunSubagent}
-            onGenerateBriefing={handleGenerateBriefing}
-            onNavigateTab={setActiveTab}
-            isOrchestrating={isOrchestrating}
+          {/* Super Agente Coordinator */}
+          <Route
+            path="/agente"
+            element={
+              <SuperAgentView
+                status={superAgentStatus}
+                onRefreshAll={handleOrchestrateAll}
+                onRunSubagent={handleRunSubagent}
+                onGenerateBriefing={handleGenerateBriefing}
+                onNavigateTab={handleNavigateTab as any}
+                isOrchestrating={isOrchestrating}
+              />
+            }
           />
-        )}
+          <Route path="/super-agent" element={<Navigate to="/agente" replace />} />
 
-        {activeTab === 'expenses' && showExpenses && (
-          <ExpensesView
-            expenses={expenses}
-            onAddExpense={handleAddExpense}
-            onUpdateExpense={handleUpdateExpense}
-            onTogglePaid={handleToggleExpensePaid}
-            onDeleteExpense={handleDeleteExpense}
-            onClearAllExpenses={handleClearAllExpenses}
-            showExpenses={showExpenses}
-            onToggleShowExpenses={() => setShowExpenses(!showExpenses)}
+          {/* Lavoro (Email & Calendario Unificato) */}
+          <Route
+            path="/lavoro"
+            element={
+              <EmailCalendarUnifiedView
+                threads={threads}
+                events={events}
+                settings={settings}
+                onToggleRequest={handleToggleRequest}
+                onToggleThread={handleToggleThread}
+                onToggleHideThread={handleToggleHideThread}
+                onAddEvent={handleAddEvent}
+                onDeleteEvent={handleDeleteEvent}
+                onSync={handleSyncAll}
+                isSyncing={isSyncing}
+              />
+            }
           />
-        )}
+          <Route path="/email-calendar" element={<Navigate to="/lavoro" replace />} />
+          <Route path="/email-calendario" element={<Navigate to="/lavoro" replace />} />
 
-        {/* Unified Email & Calendar Tab */}
-        {activeTab === 'email-calendar' && (
-          <EmailCalendarUnifiedView
-            threads={threads}
-            events={events}
-            settings={settings}
-            onToggleRequest={handleToggleRequest}
-            onToggleThread={handleToggleThread}
-            onToggleHideThread={handleToggleHideThread}
-            onAddEvent={handleAddEvent}
-            onDeleteEvent={handleDeleteEvent}
-            onSync={handleSyncAll}
-            isSyncing={isSyncing}
+          {/* Spese Fisse */}
+          <Route
+            path="/spese"
+            element={
+              showExpenses ? (
+                <ExpensesView
+                  expenses={expenses}
+                  onAddExpense={handleAddExpense}
+                  onUpdateExpense={handleUpdateExpense}
+                  onTogglePaid={handleToggleExpensePaid}
+                  onDeleteExpense={handleDeleteExpense}
+                  onClearAllExpenses={handleClearAllExpenses}
+                  showExpenses={showExpenses}
+                  onToggleShowExpenses={() => setShowExpenses(!showExpenses)}
+                />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
           />
-        )}
+          <Route path="/expenses" element={<Navigate to="/spese" replace />} />
 
-        {activeTab === 'docs-rag' && (
-          <RagDocsView
-            documents={documents}
-            chunks={chunks}
-            settings={settings}
-            ecosystem={{
-              expenses,
-              events,
-              requests,
-              documents,
-              todayStr: new Date().toISOString().split('T')[0]
-            }}
-            onUploadDocument={handleUploadDocument}
-            onDeleteDocument={handleDeleteDocument}
+          {/* Scadenze & Cose da Fare */}
+          <Route
+            path="/scadenze"
+            element={<DeadlinesView onNavigateTab={handleNavigateTab} />}
           />
-        )}
+          <Route path="/deadlines" element={<Navigate to="/scadenze" replace />} />
 
-        {/* Scadenze & Cose da Fare (Action & Deadline Engine) */}
-        {activeTab === 'deadlines' && (
-          <DeadlinesView onNavigateTab={setActiveTab} />
-        )}
+          {/* Documenti & Knowledge RAG */}
+          <Route
+            path="/documenti"
+            element={
+              <RagDocsView
+                documents={documents}
+                chunks={chunks}
+                settings={settings}
+                ecosystem={{
+                  expenses,
+                  events,
+                  requests,
+                  documents,
+                  todayStr: new Date().toISOString().split('T')[0]
+                }}
+                onUploadDocument={handleUploadDocument}
+                onDeleteDocument={handleDeleteDocument}
+              />
+            }
+          />
+          <Route path="/docs-rag" element={<Navigate to="/documenti" replace />} />
+          <Route path="/rag" element={<Navigate to="/documenti" replace />} />
+
+          {/* Fallback per qualsiasi altro URL */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
 
       {/* Settings Modal */}

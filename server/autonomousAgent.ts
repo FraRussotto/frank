@@ -3,10 +3,9 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 
-const FRANK_DB_DIR = '/Users/fra_russo/Frank/database';
-const FRANK_DB_PATH = path.join(FRANK_DB_DIR, 'frank_agent.sqlite');
-const EMAIL_DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
-const LARAVEL_ENV_PATH = '/Users/fra_russo/email-ai-agent/.env';
+import { FRANK_DB_PATH, EMAIL_DB_PATH, LARAVEL_ENV_PATH } from './paths';
+
+const FRANK_DB_DIR = path.dirname(FRANK_DB_PATH);
 const BASELINE_DATE = '2026-11-01 00:00:00';
 
 function getAiApiKey(): string {

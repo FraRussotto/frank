@@ -35,3 +35,4 @@ export function initTelegramScheduler() {
     }
   }, 30000);
 }
+

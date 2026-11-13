@@ -3,7 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
-const FRANK_DB_PATH = '/Users/fra_russo/Frank/database/frank_agent.sqlite';
+import { FRANK_DB_PATH } from '../../paths';
 
 export class FinanceSubagent implements ISubagent {
   public id = 'finance';

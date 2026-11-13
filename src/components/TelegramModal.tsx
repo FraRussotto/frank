@@ -11,6 +11,7 @@ interface TelegramStatus {
   running: boolean;
   botUsername: string | null;
   chatId: string;
+  allowedChatIds?: string[];
   dailyBriefingEnabled: boolean;
   dailyBriefingTime: string;
 }
@@ -196,6 +197,22 @@ export const TelegramModal: React.FC<TelegramModalProps> = ({ isOpen, onClose })
                   {status.chatId ? `Chat ID: ${status.chatId}` : 'In attesa di /start da Telegram'}
                 </span>
               </div>
+              {status.chatId && (
+                <div className="p-2.5 rounded-lg bg-emerald-50/80 border border-emerald-200/80 flex items-start gap-2 text-[11px] text-emerald-900">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <div>
+                      <span className="font-semibold">Protezione Privacy Attiva (Whitelist ID):</span> Solo gli account autorizzati possono interagire con Frank.
+                    </div>
+                    <div className="font-mono text-[10px] text-emerald-800">
+                      ID Autorizzati: {status.allowedChatIds?.join(', ') || status.chatId}
+                    </div>
+                    <div className="text-[10px] text-slate-500 italic">
+                      💡 Per aggiungere un nuovo ID basta digitare su Telegram: <code className="bg-emerald-100/70 text-emerald-900 px-1 py-0.5 rounded font-mono">/autorizza &lt;id&gt;</code>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-2">
                 <button
                   type="button"
@@ -311,3 +328,4 @@ export const TelegramModal: React.FC<TelegramModalProps> = ({ isOpen, onClose })
     </div>
   );
 };
+

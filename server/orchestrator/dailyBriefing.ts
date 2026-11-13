@@ -3,8 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { deadlineEngine } from './deadlineEngine';
 import { getAllAnalysesMap } from './autonomousAgentProxy';
 
-const EMAIL_DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
-const LARAVEL_ENV_PATH = '/Users/fra_russo/email-ai-agent/.env';
+import { EMAIL_DB_PATH, LARAVEL_ENV_PATH } from '../paths';
 
 function getAiApiKey(): string {
   if (existsSync(LARAVEL_ENV_PATH)) {
@@ -135,38 +134,54 @@ Sii diretto, esecutivo e fluido.`;
     category: d.category
   }));
 
-  // 4. COMPOSIZIONE MESSAGGIO TELEGRAM COMPLETO
-  let msg = `☕ *Buongiorno Francesco!* Ecco il tuo briefing di oggi, *${dayOfWeek} ${formattedDate}*:\n\n`;
+  // 4. COMPOSIZIONE MESSAGGIO TELEGRAM COMPLETO (Layout pulito, spaziato ed executive)
+  const formatEuro = (val?: number) => {
+    if (val === undefined || val === null) return '';
+    return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(val);
+  };
+
+  const divider = '━━━━━━━━━━━━━━━━━━━━';
+
+  let msg = `☕ *Buongiorno Francesco!*\n`;
+  msg += `📅 _${dayOfWeek}, ${formattedDate}_\n`;
+  msg += `${divider}\n\n`;
 
   // SEZIONE LAVORO
-  msg += `💼 *AREA LAVORO*\n`;
-  msg += `• *Focus del Giorno:*\n  ${workSummary}\n\n`;
-  msg += `• *Riunioni di Oggi:*\n`;
+  msg += `💼 *LAVORO & ATTIVITÀ*\n\n`;
+  msg += `🎯 *Focus di oggi*\n`;
+  msg += `${workSummary}\n\n`;
+
+  msg += `🗓️ *Riunioni del giorno*\n`;
   if (todayMeetings.length > 0) {
     todayMeetings.forEach(m => {
-      msg += `  📅 *${m.time}* - ${m.title}${m.sender ? ` (con ${m.sender})` : ''}\n`;
+      const senderText = m.sender ? ` _(con ${m.sender})_` : '';
+      msg += `• *${m.time}* — ${m.title}${senderText}\n`;
     });
   } else {
-    msg += `  _Nessuna riunione a calendario per oggi._\n`;
+    msg += `• _Nessuna riunione a calendario per oggi._\n`;
   }
 
-  msg += `\n`;
+  msg += `\n${divider}\n\n`;
 
   // SEZIONE PERSONALE
-  msg += `🏠 *AREA PERSONALE (SCADENZE & AVVISI)*\n`;
+  msg += `🏠 *VITA PERSONALE & SCADENZE*\n\n`;
   if (personalDeadlines.length > 0) {
-    personalDeadlines.forEach(p => {
+    personalDeadlines.forEach((p, idx) => {
       let countdown = '';
-      if (p.daysRemaining === 0) countdown = '⚠️ *SCADE OGGI*';
+      if (p.daysRemaining === 0) countdown = '⚠️ *Scade OGGI*';
       else if (p.daysRemaining === 1) countdown = '⏳ *Entro Domani*';
       else if ((p.daysRemaining ?? 0) < 0) countdown = `🔴 *Scaduto (${Math.abs(p.daysRemaining!)} gg fa)*`;
-      else countdown = `🗓️ Tra ${p.daysRemaining} giorni (${p.dueDate})`;
+      else countdown = `🗓️ *Tra ${p.daysRemaining} giorni* (${p.dueDate})`;
 
-      const amountStr = p.amount ? ` [€${p.amount}]` : '';
-      msg += `• ${p.title}${amountStr}\n  ↳ ${countdown}\n`;
+      const amountText = p.amount ? ` • *${formatEuro(p.amount)}*` : '';
+      msg += `📌 *${p.title}*${amountText}\n`;
+      msg += `   ${countdown}\n`;
+      if (idx < personalDeadlines.length - 1) {
+        msg += `\n`;
+      }
     });
   } else {
-    msg += `  _Nessuna scadenza personale imminente._\n`;
+    msg += `• _Nessuna scadenza personale imminente._\n`;
   }
 
   return {

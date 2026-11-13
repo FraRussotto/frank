@@ -2,9 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-const FRANK_DB_PATH = '/Users/fra_russo/Frank/database/frank_agent.sqlite';
-const EMAIL_DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
-const LARAVEL_ENV_PATH = '/Users/fra_russo/email-ai-agent/.env';
+import { FRANK_DB_PATH, EMAIL_DB_PATH, LARAVEL_ENV_PATH } from '../paths';
 
 export type DeadlineCategory = 'task_operativo' | 'documento' | 'preparazione_call' | 'pagamento' | 'manuale' | 'casa_utenze' | 'salute' | 'burocrazia';
 export type DeadlinePriority = 'alta' | 'media' | 'bassa';

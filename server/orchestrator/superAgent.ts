@@ -14,8 +14,7 @@ import { deadlineEngine } from './deadlineEngine';
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync, readFileSync } from 'node:fs';
 
-const FRANK_DB_PATH = '/Users/fra_russo/Frank/database/frank_agent.sqlite';
-const LARAVEL_ENV_PATH = '/Users/fra_russo/email-ai-agent/.env';
+import { FRANK_DB_PATH, LARAVEL_ENV_PATH } from '../paths';
 
 function getAiApiKey(): string {
   if (existsSync(LARAVEL_ENV_PATH)) {
