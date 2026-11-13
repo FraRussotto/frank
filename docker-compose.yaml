@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: frank-app
+    restart: unless-stopped
+    expose:
+      - "5173"
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=production
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+    volumes:
+      - frank-data:/app/database
+      - frank-uploads:/app/uploads
+      - frank-config:/app/config
+
+volumes:
+  frank-data:
+  frank-uploads:
+  frank-config:
+
+
