@@ -32,3 +32,5 @@ database/database.sqlite
 database/emails.sqlite
 
 config/telegram.json
+config/google.json
+config/*.json

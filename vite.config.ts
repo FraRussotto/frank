@@ -14,6 +14,7 @@ import { parseDocumentBuffer } from './server/documentParser';
 import { telegramBot } from './server/telegram/telegramBot';
 import { initTelegramScheduler } from './server/telegram/scheduler';
 import { saveTelegramConfig, loadTelegramConfig } from './server/telegram/config';
+import { pollGoogleData, initGoogleSyncScheduler, ensureEmailDatabaseSchema } from './server/services/googleSync';
 
 const LARAVEL_DIR = process.env.LARAVEL_DIR || (
   existsSync('/Users/fra_russo/email-ai-agent')
@@ -25,7 +26,9 @@ const DB_PATH = process.env.EMAIL_DB_PATH || (
     ? path.join(__dirname, 'database', 'emails.sqlite')
     : existsSync(path.join(__dirname, 'database', 'database.sqlite'))
       ? path.join(__dirname, 'database', 'database.sqlite')
-      : path.join(LARAVEL_DIR, 'database', 'database.sqlite')
+      : existsSync(path.join(LARAVEL_DIR, 'database', 'database.sqlite'))
+        ? path.join(LARAVEL_DIR, 'database', 'database.sqlite')
+        : path.join(__dirname, 'database', 'emails.sqlite')
 );
 const LARAVEL_ENV_PATH = process.env.LARAVEL_ENV_PATH || path.join(LARAVEL_DIR, '.env');
 const FRANK_DB_PATH = process.env.FRANK_DB_PATH || path.join(__dirname, 'database', 'frank_agent.sqlite');
@@ -80,26 +83,8 @@ function emailAgentPlugin() {
       telegramBot.initBot();
       initTelegramScheduler();
 
-      // Polling automatico in background ogni 5 minuti a partire da 1 novembre
-      let isBackgroundPolling = false;
-      const runBackgroundPoll = () => {
-        if (isBackgroundPolling) return;
-        isBackgroundPolling = true;
-        exec(`cd "${LARAVEL_DIR}" && php artisan email:poll --since="2026-11-01"`, (pollErr) => {
-          if (!pollErr) {
-            exec(`cd "${LARAVEL_DIR}" && php artisan queue:work --stop-when-empty`, () => {
-              isBackgroundPolling = false;
-              // Sveglia l'agente per studiare eventuali nuove email arrivate
-              autonomousAgent.scanAndEnqueue();
-            });
-          } else {
-            isBackgroundPolling = false;
-          }
-        });
-      };
-
-      // Avvia il timer ogni 5 minuti
-      const autoPollTimer = setInterval(runBackgroundPoll, 5 * 60 * 1000);
+      // Sincronizzazione nativa Google (Gmail + Calendar) in background
+      initGoogleSyncScheduler(10);
 
       server.middlewares.use(async (req: any, res: any, next: any) => {
         
@@ -107,8 +92,16 @@ function emailAgentPlugin() {
         if (req.url === '/api/live-data' && req.method === 'GET') {
           res.setHeader('Content-Type', 'application/json');
           if (!existsSync(DB_PATH)) {
-            res.end(JSON.stringify({ connected: false, error: 'Database SQLite non trovato' }));
-            return;
+            try {
+              const { DatabaseSync } = await import('node:sqlite');
+              const initDb = new DatabaseSync(DB_PATH);
+              ensureEmailDatabaseSchema(initDb);
+              initDb.close();
+              pollGoogleData().catch(() => {});
+            } catch (err: any) {
+              res.end(JSON.stringify({ connected: false, error: 'Inizializzazione database in corso...' }));
+              return;
+            }
           }
 
           let db: any = null;
@@ -1137,26 +1130,33 @@ DATI ECOSISTEMA:
           return;
         }
 
-        // POST /api/sync (Ultra-veloce: esegue email:poll a partire dal 1 novembre e lancia queue:work in background)
+        // POST /api/sync (Sincronizzazione nativa Google Gmail + Calendar)
         if (req.url === '/api/sync' && req.method === 'POST') {
           res.setHeader('Content-Type', 'application/json');
-          exec(`cd "${LARAVEL_DIR}" && php artisan email:poll --since="${BASELINE_DATE}"`, (pollError, pollStdout) => {
-            if (pollError) {
-              console.warn('Poll warning:', pollError.message);
+          try {
+            const syncResult = await pollGoogleData();
+            if (syncResult.success) {
+              res.end(JSON.stringify({
+                success: true,
+                message: `Sincronizzazione completata: ${syncResult.emailsFetched} email trovate (${syncResult.newEmailsInserted} nuove), ${syncResult.eventsFetched} eventi calendario.`,
+                details: syncResult
+              }));
+            } else {
+              res.statusCode = 500;
+              res.end(JSON.stringify({
+                success: false,
+                message: `Errore sincronizzazione: ${syncResult.error || 'Errore sconosciuto'}`,
+                details: syncResult
+              }));
             }
-            // Lancia l'elaboratore dei job in background in modo asincrono (senza bloccare la risposta HTTP)
-            exec(`cd "${LARAVEL_DIR}" && php artisan queue:work --stop-when-empty`, () => {
-              // Quando il worker termina l'importazione, Frank Agent le analizza subito in autonomia
-              autonomousAgent.scanAndEnqueue();
-            });
-
-            // Risposta immediata al frontend
+          } catch (err: any) {
+            res.statusCode = 500;
             res.end(JSON.stringify({
-              success: true,
-              message: 'Sincronizzazione completata con successo',
-              details: (pollStdout || '').trim()
+              success: false,
+              message: `Errore sync: ${err.message}`,
+              error: err.message
             }));
-          });
+          }
           return;
         }
 

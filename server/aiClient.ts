@@ -110,3 +110,4 @@ export async function callAiModel(messages: ChatMessage[], options: { temperatur
   const data = await res.json();
   return data.choices?.[0]?.message?.content?.trim() || '';
 }
+

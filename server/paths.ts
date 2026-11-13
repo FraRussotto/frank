@@ -26,7 +26,9 @@ export const EMAIL_DB_PATH = process.env.EMAIL_DB_PATH || (
     ? path.join(APP_ROOT, 'database', 'emails.sqlite')
     : existsSync(path.join(APP_ROOT, 'database', 'database.sqlite'))
       ? path.join(APP_ROOT, 'database', 'database.sqlite')
-      : path.join(LARAVEL_DIR, 'database', 'database.sqlite')
+      : existsSync(path.join(LARAVEL_DIR, 'database', 'database.sqlite'))
+        ? path.join(LARAVEL_DIR, 'database', 'database.sqlite')
+        : path.join(APP_ROOT, 'database', 'emails.sqlite')
 );
 export const LARAVEL_ENV_PATH = process.env.LARAVEL_ENV_PATH || path.join(LARAVEL_DIR, '.env');
 
