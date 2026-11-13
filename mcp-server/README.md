@@ -54,8 +54,10 @@ Oppure nel file di configurazione `.cursor/mcp.json`:
 
 ---
 
-### 3. Antigravity & Agentic Tools
-Puoi aggiungere Frank al file di configurazione MCP di Antigravity:
+### 3. Google Gemini & Antigravity (Pre-configurato ✅)
+Il server MCP è stato configurato nel file globale di configurazione:
+`~/.gemini/config/mcp_config.json`
+
 ```json
 {
   "mcpServers": {
@@ -69,6 +71,10 @@ Puoi aggiungere Frank al file di configurazione MCP di Antigravity:
   }
 }
 ```
+In questo modo:
+- **Antigravity**: rileva e monta automaticamente i 10 strumenti di Frank in tutte le sessioni.
+- **Gemini CLI (`agy`)**: può invocare direttamente i tool di Frank da qualsiasi cartella o terminale.
+- **SDK Gemini Python / TypeScript**: puoi collegare il server MCP avviandolo come subprocess stdio con il protocollo MCP standard.
 
 ---
 
@@ -106,3 +112,4 @@ Puoi aggiungere Frank al file di configurazione MCP di Antigravity:
 Il connettore MCP opera con un'architettura a **doppio livello**:
 1. **Live Mode**: Se la web app Frank è aperta (`http://localhost:5173`), il server MCP si coordina con l'orchestratore in tempo reale per le risposte multi-agente e i briefing aggiornati.
 2. **Offline Mode**: Se la web app Frank è chiusa, il server MCP interroga direttamente i database SQLite (`frank_agent.sqlite` e `database.sqlite`) e i file salvati su disco locale, garantendo che **Claude, Cursor e le altre AI possano sempre accedere ai tuoi dati anche a Frank spento**.
+
