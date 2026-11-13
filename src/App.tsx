@@ -8,6 +8,7 @@ import { RagDocsView } from './components/RagDocsView';
 import { SuperAgentView } from './components/SuperAgentView';
 import { DeadlinesView } from './components/DeadlinesView';
 import { FlatSettingsModal } from './components/FlatSettingsModal';
+import { TelegramModal } from './components/TelegramModal';
 import {
   INITIAL_FIXED_EXPENSES,
   INITIAL_SYNCED_EVENTS,
@@ -53,6 +54,7 @@ function isIgnoredEventTitle(title: string): boolean {
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag' | 'deadlines'>('overview');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncToast, setSyncToast] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
   const [agentStatus, setAgentStatus] = useState<AgentWorkerStatus | null>(null);
@@ -504,6 +506,7 @@ export const App: React.FC = () => {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenTelegram={() => setIsTelegramModalOpen(true)}
         onSyncAll={handleSyncAll}
         isSyncing={isSyncing}
         settings={settings}
@@ -605,6 +608,12 @@ export const App: React.FC = () => {
         settings={settings}
         onSaveSettings={setSettings}
         onResetData={handleResetData}
+      />
+
+      {/* Telegram Bot Modal */}
+      <TelegramModal
+        isOpen={isTelegramModalOpen}
+        onClose={() => setIsTelegramModalOpen(false)}
       />
 
     </div>

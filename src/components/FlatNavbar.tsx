@@ -7,7 +7,8 @@ import {
   FileText,
   CalendarCheck,
   RotateCw,
-  Settings
+  Settings,
+  Send
 } from 'lucide-react';
 import { AppSettings } from '../types';
 
@@ -15,6 +16,7 @@ interface FlatNavbarProps {
   activeTab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag' | 'deadlines';
   onTabChange: (tab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag' | 'deadlines') => void;
   onOpenSettings: () => void;
+  onOpenTelegram?: () => void;
   onSyncAll: () => void;
   isSyncing: boolean;
   settings: AppSettings;
@@ -27,6 +29,7 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
   activeTab,
   onTabChange,
   onOpenSettings,
+  onOpenTelegram,
   onSyncAll,
   isSyncing,
   unpaidExpensesCount,
@@ -162,6 +165,18 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
                 {isSyncing ? 'Sincronizzazione...' : 'Sincronizza'}
               </span>
             </button>
+
+            {/* Telegram Bot */}
+            {onOpenTelegram && (
+              <button
+                onClick={onOpenTelegram}
+                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-semibold transition-colors"
+                title="Configura Bot Telegram e notifiche del mattino"
+              >
+                <Send className="w-3.5 h-3.5 -rotate-12 translate-x-0.5" />
+                <span className="hidden sm:inline">Telegram</span>
+              </button>
+            )}
 
             {/* Settings */}
             <button

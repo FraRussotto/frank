@@ -11,6 +11,9 @@ import { KnowledgeSubagent } from './server/orchestrator/subagents/knowledgeSuba
 import { deadlineEngine } from './server/orchestrator/deadlineEngine';
 import { generateDailyBriefing } from './server/orchestrator/dailyBriefing';
 import { parseDocumentBuffer } from './server/documentParser';
+import { telegramBot } from './server/telegram/telegramBot';
+import { initTelegramScheduler } from './server/telegram/scheduler';
+import { saveTelegramConfig, loadTelegramConfig } from './server/telegram/config';
 
 const DB_PATH = '/Users/fra_russo/email-ai-agent/database/database.sqlite';
 const LARAVEL_DIR = '/Users/fra_russo/email-ai-agent';
@@ -63,6 +66,7 @@ function emailAgentPlugin() {
       // Avvia l'Agente Autonomo e il Super Agente Coordinatore di Frank in background
       autonomousAgent.start();
       superAgent.startHeartbeat(60 * 1000);
+      initTelegramScheduler();
 
       // Polling automatico in background ogni 5 minuti a partire da 1 novembre
       let isBackgroundPolling = false;
@@ -624,6 +628,58 @@ function emailAgentPlugin() {
           }
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({ success: true }));
+          return;
+        }
+
+        // GET /api/telegram/status (Stato configurazione Bot Telegram)
+        if (req.url === '/api/telegram/status' && req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(telegramBot.getStatus()));
+          return;
+        }
+
+        // POST /api/telegram/config (Salva credenziali o orario briefing e riavvia bot)
+        if (req.url === '/api/telegram/config' && req.method === 'POST') {
+          let bodyStr = '';
+          req.on('data', (chunk: any) => { bodyStr += chunk; });
+          req.on('end', async () => {
+            res.setHeader('Content-Type', 'application/json');
+            try {
+              const body = JSON.parse(bodyStr || '{}');
+              saveTelegramConfig(body);
+              await telegramBot.initBot();
+              res.end(JSON.stringify({ success: true, status: telegramBot.getStatus() }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+
+        // POST /api/telegram/send-briefing (Invia manualmente il briefing su Telegram)
+        if (req.url === '/api/telegram/send-briefing' && req.method === 'POST') {
+          res.setHeader('Content-Type', 'application/json');
+          try {
+            const result = await telegramBot.sendDailyBriefing();
+            res.end(JSON.stringify(result));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ success: false, error: err.message }));
+          }
+          return;
+        }
+
+        // POST /api/telegram/test (Invia un messaggio di prova per verificare la connessione)
+        if (req.url === '/api/telegram/test' && req.method === 'POST') {
+          res.setHeader('Content-Type', 'application/json');
+          try {
+            const result = await telegramBot.sendMessage('🚀 *Test di Connessione Frank Telegram Bot:*\nIl bot è online e collegato con successo al tuo Mac!');
+            res.end(JSON.stringify(result));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ success: false, error: err.message }));
+          }
           return;
         }
 
