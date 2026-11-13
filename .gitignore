@@ -28,3 +28,4 @@ uploads/documents/*
 !uploads/documents/.gitkeep
 
 
+config/telegram.json
