@@ -179,7 +179,7 @@ server.tool(
     // 2. Fallback offline: Costruisci contesto da SQLite ed effettua query LLM diretta
     const fDb = getFrankDb(true);
     const deadlines = fDb.prepare("SELECT * FROM deadlines WHERE status = 'pending' ORDER BY due_date ASC LIMIT 10").all();
-    const expenses = fDb.prepare("SELECT * FROM fixed_expenses WHERE is_active = 1").all();
+    const expenses = fDb.prepare("SELECT * FROM fixed_expenses").all();
     const docs = fDb.prepare("SELECT id, title, category FROM kb_documents").all();
     fDb.close();
 
@@ -354,7 +354,7 @@ server.tool(
   },
   async ({ exclude_auto_debit }) => {
     const db = getFrankDb(true);
-    let query = 'SELECT * FROM fixed_expenses WHERE is_active = 1';
+    let query = 'SELECT * FROM fixed_expenses WHERE 1=1';
     if (exclude_auto_debit) {
       query += ' AND (is_auto_debit = 0 OR is_auto_debit IS NULL)';
     }
@@ -623,7 +623,7 @@ server.resource(
   'frank://expenses/overview',
   async (uri) => {
     const db = getFrankDb(true);
-    const rows = db.prepare("SELECT * FROM fixed_expenses WHERE is_active = 1 ORDER BY due_day ASC").all();
+    const rows = db.prepare("SELECT * FROM fixed_expenses ORDER BY due_day ASC").all();
     db.close();
     return {
       contents: [{
@@ -677,3 +677,4 @@ main().catch((err) => {
   console.error('[Frank MCP Server Fatal Error]:', err);
   process.exit(1);
 });
+
