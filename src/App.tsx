@@ -239,6 +239,11 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.DOCS, JSON.stringify(documents));
+    fetch('/api/documents/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ documents })
+    }).catch(err => console.warn('Errore sync docs verso subagente:', err));
   }, [documents]);
 
   useEffect(() => {
@@ -525,6 +530,7 @@ export const App: React.FC = () => {
             onToggleRequestStatus={handleToggleRequestStatus}
             onSyncAll={handleSyncAll}
             isSyncing={isSyncing}
+            onSaveCompaction={handleUploadDocument}
           />
         )}
 

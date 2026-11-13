@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, FileText, Trash2, Send, Bot, User, RotateCw, AlertCircle, FileSpreadsheet, File } from 'lucide-react';
+import { UploadCloud, FileText, Trash2, Send, Bot, User, RotateCw, AlertCircle, FileSpreadsheet, File, Eye, X, Brain, Sparkles } from 'lucide-react';
 import { StoredDocument, DocumentChunk, AppSettings, ChatMessage, EcosystemContext } from '../types';
 import { retrieveRelevantChunks, generateRAGAnswer } from '../services/ragEngine';
 import { AiMessageRenderer } from './AiMessageRenderer';
@@ -36,6 +36,8 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
   const [quickTitle, setQuickTitle] = useState('');
   const [quickText, setQuickText] = useState('');
   const [showPasteBox, setShowPasteBox] = useState(false);
+  const [docFilter, setDocFilter] = useState<'all' | 'files' | 'compaction'>('all');
+  const [viewingDoc, setViewingDoc] = useState<StoredDocument | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,6 +124,9 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
   };
 
   const getFormatBadge = (doc: StoredDocument) => {
+    if (doc.category === 'Memoria Chat' || doc.tags?.includes('compaction') || doc.title.toLowerCase().startsWith('compaction:')) {
+      return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">🧠 CHAT</span>;
+    }
     const lower = (doc.title || doc.fileType || '').toLowerCase();
     if (lower.endsWith('.pdf') || doc.fileType === 'pdf') {
       return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200">PDF</span>;
@@ -298,35 +303,123 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
             )}
           </div>
 
-          {/* Stored Documents List */}
+          {/* Stored Documents List with Compaction Filter */}
           <div className="rounded-xl bg-white border border-slate-200/90 shadow-xs divide-y divide-slate-100 overflow-hidden">
-            <div className="px-4 py-2.5 bg-slate-50/70 text-[11px] font-medium text-slate-500 flex items-center justify-between">
-              <span>{documents.length} Documenti indicizzati</span>
-              <span>{chunks.length} Chunks</span>
+            {/* Filter Pills */}
+            <div className="p-2 bg-slate-50/80 border-b border-slate-100 flex items-center gap-1.5 text-[11px]">
+              <button
+                type="button"
+                onClick={() => setDocFilter('all')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                  docFilter === 'all'
+                    ? 'bg-white text-slate-800 shadow-2xs border border-slate-200'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Tutti ({documents.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setDocFilter('files')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                  docFilter === 'files'
+                    ? 'bg-white text-slate-800 shadow-2xs border border-slate-200'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                File & Note ({documents.filter(d => !(d.category === 'Memoria Chat' || d.tags?.includes('compaction') || d.title.toLowerCase().startsWith('compaction:'))).length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setDocFilter('compaction')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+                  docFilter === 'compaction'
+                    ? 'bg-indigo-50 text-indigo-700 shadow-2xs border border-indigo-200'
+                    : 'text-slate-500 hover:text-indigo-700'
+                }`}
+              >
+                <span>🧠 Memoria Chat</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-800 font-semibold">
+                  {documents.filter(d => d.category === 'Memoria Chat' || d.tags?.includes('compaction') || d.title.toLowerCase().startsWith('compaction:')).length}
+                </span>
+              </button>
             </div>
 
-            {documents.map((doc) => (
-              <div key={doc.id} className="p-3 flex items-center justify-between hover:bg-slate-50/60 text-xs">
-                <div className="flex items-center space-x-2.5 truncate mr-2">
-                  <div className="shrink-0">{getFormatBadge(doc)}</div>
-                  <div className="truncate">
-                    <div className="font-semibold text-slate-800 truncate">{doc.title}</div>
-                    <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
-                      <span>{(doc.sizeBytes / 1024).toFixed(1)} KB</span>
-                      <span>•</span>
-                      <span className="text-slate-500">{doc.category}</span>
+            <div className="px-4 py-2 bg-slate-50/40 text-[10px] font-medium text-slate-400 flex items-center justify-between">
+              <span>
+                {documents.filter(d => {
+                  const isComp = d.category === 'Memoria Chat' || d.tags?.includes('compaction') || d.title.toLowerCase().startsWith('compaction:');
+                  if (docFilter === 'compaction') return isComp;
+                  if (docFilter === 'files') return !isComp;
+                  return true;
+                }).length} elementi
+              </span>
+              <span>{chunks.length} frammenti RAG totali</span>
+            </div>
+
+            {documents.filter(d => {
+              const isComp = d.category === 'Memoria Chat' || d.tags?.includes('compaction') || d.title.toLowerCase().startsWith('compaction:');
+              if (docFilter === 'compaction') return isComp;
+              if (docFilter === 'files') return !isComp;
+              return true;
+            }).length === 0 ? (
+              <div className="p-6 text-center text-xs text-slate-400">
+                Nessuna voce trovata in questa sezione.
+              </div>
+            ) : (
+              documents.filter(d => {
+                const isComp = d.category === 'Memoria Chat' || d.tags?.includes('compaction') || d.title.toLowerCase().startsWith('compaction:');
+                if (docFilter === 'compaction') return isComp;
+                if (docFilter === 'files') return !isComp;
+                return true;
+              }).map((doc) => (
+                <div
+                  key={doc.id}
+                  onClick={() => setViewingDoc(doc)}
+                  className="p-3 flex items-center justify-between hover:bg-slate-50/80 text-xs transition-colors group cursor-pointer"
+                >
+                  <div className="flex items-center space-x-2.5 truncate mr-2">
+                    <div className="shrink-0">{getFormatBadge(doc)}</div>
+                    <div className="truncate">
+                      <div className="font-semibold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">
+                        {doc.title}
+                      </div>
+                      <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                        <span>{(doc.sizeBytes / 1024).toFixed(1)} KB</span>
+                        <span>•</span>
+                        <span className="text-slate-500">{doc.category}</span>
+                        <span>•</span>
+                        <span>{new Date(doc.uploadedAt).toLocaleDateString('it-IT')}</span>
+                      </div>
                     </div>
                   </div>
+                  <div className="flex items-center space-x-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setViewingDoc(doc);
+                      }}
+                      className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
+                      title="Leggi contenuto"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteDocument(doc.id);
+                      }}
+                      className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                      title="Elimina"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => onDeleteDocument(doc.id)}
-                  className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
-                  title="Elimina"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
         </div>
@@ -423,6 +516,47 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
         </div>
 
       </div>
+
+      {/* Modal Visualizzatore Documento / Compaction */}
+      {viewingDoc && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+              <div className="flex items-center space-x-2.5 truncate mr-2">
+                {getFormatBadge(viewingDoc)}
+                <div className="truncate">
+                  <h3 className="font-semibold text-slate-800 text-sm truncate">{viewingDoc.title}</h3>
+                  <p className="text-[11px] text-slate-400">
+                    {viewingDoc.category} • {(viewingDoc.sizeBytes / 1024).toFixed(1)} KB • Indicizzato nel RAG
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingDoc(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto flex-1 text-xs leading-relaxed text-slate-700 space-y-3 bg-white">
+              <AiMessageRenderer content={viewingDoc.content} isUser={false} />
+            </div>
+
+            <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs">
+              <span className="text-[11px] text-slate-500">
+                Disponibile come fonte di memoria per tutte le richieste a Frank Copilot.
+              </span>
+              <button
+                onClick={() => setViewingDoc(null)}
+                className="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-medium text-xs transition-colors"
+              >
+                Chiudi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

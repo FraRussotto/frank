@@ -46,6 +46,7 @@ interface OverviewViewProps {
   onToggleRequestStatus: (id: string) => void;
   onSyncAll: () => void;
   isSyncing: boolean;
+  onSaveCompaction?: (doc: StoredDocument) => void;
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
@@ -62,7 +63,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onToggleExpensePaid,
   onToggleRequestStatus,
   onSyncAll,
-  isSyncing
+  isSyncing,
+  onSaveCompaction
 }) => {
   // Calcolo statistiche
   const totalMonthlyExpenses = expenses.reduce((sum, e) => {
@@ -179,6 +181,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         chunks={chunks}
         ecosystem={ecosystem}
         onNavigateTab={onNavigateTab}
+        onSaveCompaction={onSaveCompaction}
       />
 
       {/* 2b. Preventive Alert: Proactive Deadlines & Action Items */}

@@ -15,7 +15,7 @@ import {
   Layers,
   CheckCircle2
 } from 'lucide-react';
-import { CopilotMessage, SuperAgentDelegation, AppSettings, EcosystemContext, DocumentChunk } from '../types';
+import { CopilotMessage, SuperAgentDelegation, AppSettings, EcosystemContext, DocumentChunk, StoredDocument } from '../types';
 import { retrieveRelevantChunks } from '../services/ragEngine';
 import { AiMessageRenderer } from './AiMessageRenderer';
 
@@ -23,7 +23,8 @@ interface FrankCopilotProps {
   settings: AppSettings;
   chunks: DocumentChunk[];
   ecosystem?: EcosystemContext;
-  onNavigateTab?: (tab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag') => void;
+  onNavigateTab?: (tab: 'overview' | 'super-agent' | 'expenses' | 'email-calendar' | 'docs-rag' | 'deadlines') => void;
+  onSaveCompaction?: (doc: StoredDocument) => void;
 }
 
 const STORAGE_KEY_COPILOT = 'frank_copilot_chat_v1';
@@ -49,7 +50,8 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
   settings,
   chunks,
   ecosystem,
-  onNavigateTab
+  onNavigateTab,
+  onSaveCompaction
 }) => {
   const [messages, setMessages] = useState<CopilotMessage[]>(() => {
     try {
@@ -62,6 +64,8 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
 
   const [inputQuery, setInputQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isCompacting, setIsCompacting] = useState(false);
+  const [compactionToast, setCompactionToast] = useState<{ title: string; summary: string } | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -81,11 +85,64 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
     }
   }, [messages, isLoading]);
 
-  const handleClearHistory = () => {
-    setMessages(INITIAL_MESSAGES);
+  const handleClearHistory = async () => {
+    const hasUserMessages = messages.some(m => m.role === 'user');
+
+    if (!hasUserMessages) {
+      setMessages(INITIAL_MESSAGES);
+      try {
+        localStorage.removeItem(STORAGE_KEY_COPILOT);
+      } catch {}
+      return;
+    }
+
+    setIsCompacting(true);
     try {
-      localStorage.removeItem(STORAGE_KEY_COPILOT);
-    } catch {}
+      const res = await fetch('/api/chat/compact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.compaction) {
+          const docId = `compaction-${Date.now()}`;
+          const title = data.compaction.title || 'Sintesi Sessione Chat';
+          const content = data.compaction.markdownContent || data.compaction.summary || '';
+
+          const compactionDoc: StoredDocument = {
+            id: docId,
+            title: `Compaction: ${title}`,
+            category: 'Memoria Chat',
+            fileType: 'md',
+            sizeBytes: new Blob([content]).size,
+            uploadedAt: new Date().toISOString(),
+            content,
+            chunksCount: 0,
+            tags: ['compaction', 'memoria-chat', 'copilot']
+          };
+
+          if (onSaveCompaction) {
+            onSaveCompaction(compactionDoc);
+          }
+
+          setCompactionToast({
+            title,
+            summary: data.compaction.summary || 'Sessione archiviata nel RAG come nuova fonte'
+          });
+          setTimeout(() => setCompactionToast(null), 6000);
+        }
+      }
+    } catch (err) {
+      console.warn('Errore durante la compattazione della chat:', err);
+    } finally {
+      setIsCompacting(false);
+      setMessages(INITIAL_MESSAGES);
+      try {
+        localStorage.removeItem(STORAGE_KEY_COPILOT);
+      } catch {}
+    }
   };
 
   const handleSend = async (queryText?: string) => {
@@ -191,11 +248,21 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
             <button
               type="button"
               onClick={handleClearHistory}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-slate-300 hover:text-white bg-white/10 hover:bg-white/15 border border-white/10 transition-colors"
-              title="Azzera conversazione"
+              disabled={isCompacting}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-slate-300 hover:text-white bg-white/10 hover:bg-white/15 border border-white/10 transition-colors disabled:opacity-50"
+              title="Compatta e archivia questa conversazione nel RAG, poi avvia una nuova chat"
             >
-              <Trash2 className="w-3 h-3" />
-              <span>Nuova chat</span>
+              {isCompacting ? (
+                <>
+                  <RotateCw className="w-3 h-3 animate-spin text-amber-300" />
+                  <span className="text-amber-200 font-semibold">Compattazione in corso...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-3 h-3" />
+                  <span>Nuova chat</span>
+                </>
+              )}
             </button>
           )}
 
@@ -211,6 +278,28 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
           )}
         </div>
       </div>
+
+      {/* Compaction Toast Notification */}
+      {compactionToast && (
+        <div className="bg-indigo-950 text-white px-4 py-2.5 text-xs flex items-center justify-between border-b border-indigo-800 animate-fade-in">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-base shrink-0">🧠</span>
+            <div className="truncate">
+              <span className="font-bold text-amber-300">Memoria consolidata nel RAG: </span>
+              <span className="font-semibold text-white">{compactionToast.title}</span>
+              <span className="text-indigo-200 text-[11px] ml-2 hidden sm:inline truncate">({compactionToast.summary})</span>
+            </div>
+          </div>
+          {onNavigateTab && (
+            <button
+              onClick={() => onNavigateTab('docs-rag')}
+              className="text-[11px] text-indigo-300 hover:text-white font-semibold underline shrink-0 ml-3"
+            >
+              Vedi nel RAG →
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 2. Messages Stream */}
       <div

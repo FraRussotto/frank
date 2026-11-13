@@ -816,6 +816,88 @@ function emailAgentPlugin() {
           return;
         }
 
+        // POST /api/chat/compact (Esegue la compattazione della sessione di chat in uscita e crea una nota per il RAG)
+        if (req.url === '/api/chat/compact' && req.method === 'POST') {
+          let bodyStr = '';
+          req.on('data', (chunk: any) => { bodyStr += chunk; });
+          req.on('end', async () => {
+            res.setHeader('Content-Type', 'application/json');
+            try {
+              const { messages } = JSON.parse(bodyStr || '{}');
+              if (!Array.isArray(messages) || messages.length === 0) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'Nessun messaggio fornito per la compaction' }));
+                return;
+              }
+
+              const apiKey = getAiApiKey();
+              const transcriptText = messages
+                .filter((m: any) => m.role === 'user' || m.role === 'assistant')
+                .map((m: any) => `${m.role === 'user' ? 'Francesco' : 'Frank'}: ${m.content}`)
+                .join('\n\n');
+
+              const prompt = `Sei il Memory Consolidation Engine del Second Brain di Francesco Russotto.
+Analizza attentamente la trascrizione della chat tra Francesco e Frank appena conclusa.
+
+IL TUO COMPITO:
+Comprimi questa sessione in una "Compaction Note" densa di conoscenza, priva di convenevoli e strutturata in Markdown.
+Questo documento diventerà un elemento della Knowledge Base RAG per rispondere alle richieste future di Francesco.
+
+ESTRAI E STRUTTURA:
+1. "title": Titolo sintetico del tema principale (max 6 parole, es. "Verifica Partita IVA e Visura", "Priorità Citterio e Strategia reCAPTCHA").
+2. "summary": Una frase breve e chiara che sintetizza il succo della conversazione.
+3. "markdownContent": Testo Markdown formattato contenente:
+   - ## Argomento & Scopo della Conversazione
+   - ## Dati Chiave & Fatti Emersi (riporta con precisione numeri, codici, date, nomi di persone o aziende menzionati)
+   - ## Decisioni Prese & Indicazioni Future
+   - ## Punti Aperti o Azioni Concordate
+
+Restituisci ESCLUSIVAMENTE un JSON valido (senza testo prima o dopo, senza blocchi \`\`\`json):
+{
+  "title": "Titolo Breve",
+  "summary": "Frase di sintesi",
+  "markdownContent": "# Compaction: ...\\n\\n## Argomento...\\n\\n..."
+}
+
+TRASCRIZIONE CHAT:
+${transcriptText.slice(0, 10000)}`;
+
+              const aiRes = await fetch('https://api.perplexity.ai/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${apiKey}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  model: 'sonar',
+                  messages: [
+                    { role: 'system', content: 'Rispondi ESCLUSIVAMENTE con un JSON valido grezzo. Nessun blocco markdown o testo extra.' },
+                    { role: 'user', content: prompt }
+                  ],
+                  temperature: 0.1,
+                  max_tokens: 1200
+                })
+              });
+
+              if (!aiRes.ok) {
+                throw new Error(`Errore AI Sonar: ${aiRes.status}`);
+              }
+
+              const aiData: any = await aiRes.json();
+              const rawContent = aiData.choices?.[0]?.message?.content || '{}';
+              const cleanJson = rawContent.replace(/```json/gi, '').replace(/```/g, '').trim();
+              const compactionResult = JSON.parse(cleanJson);
+
+              res.end(JSON.stringify({ success: true, compaction: compactionResult }));
+            } catch (err: any) {
+              console.error('Errore compaction chat:', err);
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+
         // POST /api/rag/ask (Motore AI unificato per Frank RAG & Chat: risposte sintetiche e precise)
         if (req.url === '/api/rag/ask' && req.method === 'POST') {
           let bodyStr = '';
