@@ -39,14 +39,13 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
   const [docFilter, setDocFilter] = useState<'all' | 'files' | 'compaction'>('all');
   const [viewingDoc, setViewingDoc] = useState<StoredDocument | null>(null);
   const [modalTab, setModalTab] = useState<'preview' | 'rag-text'>('preview');
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
+  const processFiles = async (files: File[]) => {
+    if (!files || files.length === 0) return;
     setIsUploading(true);
     setUploadError(null);
-
-    const files = Array.from(e.target.files);
 
     for (const file of files) {
       try {
@@ -121,6 +120,37 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
     setIsUploading(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      await processFiles(Array.from(e.target.files));
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isUploading) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (isUploading) return;
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      await processFiles(Array.from(e.dataTransfer.files));
     }
   };
 
@@ -264,37 +294,61 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,.md,.json"
+              accept=".pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,.md,.json,.png,.jpg,.jpeg,.webp"
               onChange={handleFileUpload}
               className="hidden"
             />
 
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className="w-full py-3.5 px-4 border border-dashed border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-indigo-50/20 rounded-xl text-xs text-slate-700 flex flex-col items-center justify-center gap-1.5 transition-all group disabled:opacity-50"
+            <div
+              onClick={() => {
+                if (!isUploading) fileInputRef.current?.click();
+              }}
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  if (!isUploading) fileInputRef.current?.click();
+                }
+              }}
+              className={`w-full py-4 px-4 border-2 border-dashed rounded-xl text-xs text-slate-700 flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer select-none group ${
+                isDragging
+                  ? 'border-indigo-500 bg-indigo-50/80 ring-4 ring-indigo-400/20 scale-[1.01]'
+                  : 'border-slate-300 hover:border-indigo-400 bg-slate-50/60 hover:bg-indigo-50/20'
+              } ${isUploading ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
             >
               {isUploading ? (
                 <div className="flex items-center gap-2 text-indigo-600 font-semibold py-1">
                   <RotateCw className="w-4 h-4 animate-spin text-indigo-600" />
-                  <span>Estrazione e indicizzazione semantica...</span>
+                  <span>Estrazione e salvataggio locale in corso...</span>
+                </div>
+              ) : isDragging ? (
+                <div className="flex flex-col items-center gap-1 py-1 text-indigo-600 animate-pulse">
+                  <UploadCloud className="w-6 h-6 text-indigo-600" />
+                  <span className="font-semibold text-xs">Rilascia qui i file per caricarli</span>
+                  <span className="text-[10px] text-indigo-400">PDF, Word, Excel, immagini o note</span>
                 </div>
               ) : (
                 <>
                   <div className="flex items-center gap-2 text-slate-800 font-semibold">
                     <UploadCloud className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" />
-                    <span>Carica Documenti (PDF, Word, Excel, CSV, Note)</span>
+                    <span>Trascina qui i tuoi file oppure <span className="text-indigo-600 underline underline-offset-2">sfoglia</span></span>
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-1 text-[10px] text-slate-400">
                     <span className="px-1 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200 font-mono">.pdf</span>
                     <span className="px-1 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200 font-mono">.docx</span>
                     <span className="px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">.xlsx</span>
                     <span className="px-1 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200 font-mono">.csv</span>
+                    <span className="px-1 py-0.2 rounded bg-purple-50 text-purple-700 border border-purple-200 font-mono">.png / .jpg</span>
                     <span className="px-1 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 font-mono">.md / .txt</span>
                   </div>
                 </>
               )}
-            </button>
+            </div>
 
             {uploadError && (
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700">
