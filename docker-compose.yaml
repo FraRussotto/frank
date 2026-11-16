@@ -5,12 +5,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: frank-app
     restart: unless-stopped
     expose:
       - "5173"
-    ports:
-      - "5173:5173"
     environment:
       - NODE_ENV=production
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
