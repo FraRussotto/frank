@@ -218,24 +218,24 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
 
   return (
     <div className="h-full w-full bg-white flex flex-col overflow-hidden">
-      {/* 1. Header Bar: Identity & Status */}
-      <div className="px-4 py-3 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between border-b border-indigo-950 shrink-0">
+      {/* 1. Header Bar: Precision Executive Console */}
+      <div className="px-4 py-3 bg-slate-950 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-sky-500 flex items-center justify-center text-white shadow-xs shrink-0">
-            <Brain className="w-4 h-4 text-white animate-pulse" />
+          <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-mono font-extrabold text-xs shadow-xs shrink-0 tracking-wider">
+            F
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h2 className="text-xs font-bold tracking-tight text-white truncate">
+            <div className="flex items-center gap-2">
+              <h2 className="text-xs font-bold tracking-tight text-white truncate font-sans">
                 Frank Copilot
               </h2>
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Live
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                ACTIVE
               </span>
             </div>
-            <p className="text-[10px] text-slate-300 truncate">
-              Super Agente Multi-Turn • 4 Reparti
+            <p className="text-[10px] text-slate-400 font-mono truncate">
+              Second Brain • 4 Reparti Operativi
             </p>
           </div>
         </div>
@@ -246,17 +246,17 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
               type="button"
               onClick={handleClearHistory}
               disabled={isCompacting}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-slate-300 hover:text-white bg-white/10 hover:bg-white/15 border border-white/10 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-mono text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 transition-all duration-150 active:scale-95 disabled:opacity-50"
               title="Compatta e archivia questa conversazione nel RAG, poi avvia una nuova chat"
             >
               {isCompacting ? (
                 <>
-                  <RotateCw className="w-3 h-3 animate-spin text-amber-300" />
-                  <span className="text-amber-200 font-semibold text-[10px]">Compattando...</span>
+                  <RotateCw className="w-3 h-3 animate-spin text-amber-400" />
+                  <span className="text-amber-300 font-semibold text-[10px]">Archiviazione...</span>
                 </>
               ) : (
                 <>
-                  <Trash2 className="w-3 h-3" />
+                  <Trash2 className="w-3 h-3 text-slate-400" />
                   <span className="hidden sm:inline">Nuova</span>
                 </>
               )}
@@ -267,7 +267,7 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
             <button
               type="button"
               onClick={() => onNavigateTab('super-agent')}
-              className="p-1 sm:px-2 sm:py-1 rounded-lg text-[11px] font-semibold text-indigo-200 hover:text-white bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400/30 transition-colors"
+              className="p-1 sm:px-2 sm:py-1 rounded-md text-[11px] font-mono font-semibold text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 transition-all duration-150 active:scale-95"
               title="Apri Cockpit Super Agente"
             >
               <ArrowRight className="w-3.5 h-3.5" />
@@ -300,53 +300,53 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
       {/* 2. Messages Stream */}
       <div
         ref={chatContainerRef}
-        className="p-3 sm:p-4 overflow-y-auto space-y-3.5 flex-1 min-h-0 bg-slate-50/40 text-xs"
+        className="p-3 sm:p-4 overflow-y-auto space-y-3.5 flex-1 min-h-0 bg-[#fafafa] text-xs"
       >
         {messages.map((m) => {
           const isUser = m.role === 'user';
           return (
             <div
               key={m.id}
-              className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
+              className={`flex items-start gap-2.5 ${isUser ? 'flex-row-reverse' : ''}`}
             >
               {/* Avatar */}
               <div
-                className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 shadow-2xs ${
+                className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-mono font-bold shrink-0 shadow-2xs ${
                   isUser
                     ? 'bg-slate-900 text-white'
                     : 'bg-indigo-600 text-white'
                 }`}
               >
-                {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                {isUser ? 'TU' : 'F'}
               </div>
 
               {/* Message Bubble Container */}
               <div
-                className={`max-w-[85%] rounded-2xl p-4 shadow-2xs leading-relaxed ${
+                className={`max-w-[88%] rounded-xl p-3.5 shadow-2xs leading-relaxed transition-all ${
                   isUser
-                    ? 'bg-slate-900 text-white rounded-tr-xs'
+                    ? 'bg-slate-900 text-slate-100 rounded-tr-xs'
                     : 'bg-white border border-slate-200/90 text-slate-800 rounded-tl-xs'
                 }`}
               >
                 {/* Visual Delegation Pill (if assistant delegated) */}
                 {!isUser && m.delegations && m.delegations.length > 0 && (
-                  <div className="mb-3 pb-2 border-b border-slate-100 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-indigo-600" />
-                      Delega eseguita:
+                  <div className="mb-2.5 pb-2 border-b border-slate-100 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-indigo-500" />
+                      Delega reparto:
                     </span>
                     {m.delegations.map((del, idx) => {
                       const DelIcon = getDelegationIcon(del.icon);
                       return (
                         <span
                           key={idx}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-800 border border-indigo-200"
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200/70"
                           title={del.detail}
                         >
-                          <DelIcon className="w-3 h-3 text-indigo-600" />
+                          <DelIcon className="w-3 h-3 text-slate-500" />
                           <span>{del.name}</span>
                           {del.detail && (
-                            <span className="text-indigo-600 text-[9px]">({del.detail})</span>
+                            <span className="text-slate-400 text-[9px] font-mono">({del.detail})</span>
                           )}
                         </span>
                       );
@@ -359,13 +359,13 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
 
                 {/* Footer timestamp & model */}
                 <div
-                  className={`mt-2 pt-1 flex items-center justify-between text-[10px] ${
+                  className={`mt-2 pt-1 flex items-center justify-between text-[10px] font-mono ${
                     isUser ? 'text-slate-400' : 'text-slate-400 border-t border-slate-100'
                   }`}
                 >
                   <span>{m.timestamp}</span>
                   {!isUser && m.modelUsed && (
-                    <span className="font-mono text-[9px] text-slate-400">
+                    <span className="text-[9px] text-slate-400 font-mono">
                       {m.modelUsed}
                     </span>
                   )}
@@ -377,23 +377,23 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
 
         {/* Loading Indicator */}
         {isLoading && (
-          <div className="flex items-start gap-3">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
-              <Bot className="w-4 h-4" />
+          <div className="flex items-start gap-2.5">
+            <div className="w-6 h-6 rounded-md bg-indigo-600 text-white flex items-center justify-center font-mono font-bold text-[10px] shrink-0">
+              F
             </div>
-            <div className="p-3.5 rounded-2xl rounded-tl-xs bg-white border border-indigo-100 shadow-2xs flex items-center gap-2.5 text-xs text-indigo-800 font-medium">
-              <RotateCw className="w-4 h-4 animate-spin text-indigo-600" />
-              <span>Frank sta interrogando i subagenti e interpretando la risposta...</span>
+            <div className="p-3 rounded-xl rounded-tl-xs bg-white border border-slate-200/90 shadow-2xs flex items-center gap-2 text-xs text-slate-700 font-medium">
+              <RotateCw className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+              <span>Frank sta consultando i reparti e sintetizzando...</span>
             </div>
           </div>
         )}
       </div>
 
       {/* 3. Quick Chips Suggestions */}
-      <div className="px-3 py-2 bg-slate-50/80 border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto text-[11px] shrink-0">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
-          <Sparkles className="w-3 h-3 text-indigo-500" />
-          Suggeriti:
+      <div className="px-3 py-2 bg-slate-50/90 border-t border-slate-200/80 flex items-center gap-1.5 overflow-x-auto text-[11px] shrink-0 no-scrollbar">
+        <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+          <Sparkles className="w-2.5 h-2.5 text-indigo-500" />
+          Prompt:
         </span>
         {SUGGESTED_QUERIES.map((item, idx) => (
           <button
@@ -401,15 +401,15 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
             type="button"
             onClick={() => handleSend(item.query)}
             disabled={isLoading}
-            className="px-2 py-0.5 rounded-lg bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-900 border border-slate-200 hover:border-indigo-200 text-[11px] whitespace-nowrap transition-colors shadow-2xs font-medium disabled:opacity-50"
+            className="px-2 py-0.5 rounded-md bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 text-[11px] whitespace-nowrap transition-all duration-150 active:scale-95 shadow-2xs font-medium disabled:opacity-50"
           >
             {item.label}
           </button>
         ))}
       </div>
 
-      {/* 4. Input Form */}
-      <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="p-3 bg-white border-t border-slate-100 flex items-center gap-2 shrink-0">
+      {/* 4. Input Form: Clean Command Bar */}
+      <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="p-2.5 bg-white border-t border-slate-200/80 flex items-center gap-2 shrink-0">
         <input
           ref={inputRef}
           type="text"
@@ -417,20 +417,20 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
           value={inputQuery}
           onChange={(e) => setInputQuery(e.target.value)}
           disabled={isLoading}
-          className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner"
+          className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-400 focus:bg-white transition-all shadow-inner"
         />
 
         <button
           type="submit"
           disabled={!inputQuery.trim() || isLoading}
-          className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs shrink-0"
+          className="px-3 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all duration-150 active:scale-95 shadow-xs shrink-0"
         >
           {isLoading ? (
             <RotateCw className="w-3.5 h-3.5 animate-spin" />
           ) : (
             <Send className="w-3.5 h-3.5" />
           )}
-          <span className="hidden xl:inline">Invia</span>
+          <span className="hidden xl:inline text-[11px]">Invia</span>
         </button>
       </form>
     </div>

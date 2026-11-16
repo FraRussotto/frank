@@ -30,6 +30,7 @@ uploads/documents/*
 # Sensitive Email Database (Do not commit real emails to public git)
 database/database.sqlite
 database/emails.sqlite
+database/*.sqlite
 
 config/telegram.json
 config/google.json

@@ -201,16 +201,16 @@ export const EmailCalendarUnifiedView: React.FC<EmailCalendarUnifiedViewProps> =
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       
       {/* Top Bar Header & Sync */}
-      <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2.5">
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Email & Calendario</h2>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-200 font-medium">
-              email-ai-agent live
+            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">Email & Calendario</h2>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-semibold uppercase tracking-wider">
+              AI Agent Engine
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Aggregazione reale per thread con attività smarcabili, corpi email completi e sincronizzazione Google Calendar.
+            Aggregazione reale per thread con attività operative smarcabili, corpi email completi e sincronizzazione Google Calendar.
           </p>
         </div>
 
@@ -218,27 +218,27 @@ export const EmailCalendarUnifiedView: React.FC<EmailCalendarUnifiedViewProps> =
         <div className="flex flex-wrap items-center gap-2">
           
           {/* Layout Switcher */}
-          <div className="hidden sm:flex items-center bg-slate-100 p-0.5 rounded-lg text-xs border border-slate-200">
+          <div className="hidden sm:flex items-center bg-slate-100 p-0.5 rounded-lg text-xs border border-slate-200/80">
             <button
               onClick={() => setActiveLayout('split')}
-              className={`px-2.5 py-1 rounded-md transition-colors ${
-                activeLayout === 'split' ? 'bg-white text-slate-900 font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-800'
+              className={`px-3 py-1 rounded-md transition-all duration-150 active:scale-95 ${
+                activeLayout === 'split' ? 'bg-slate-900 text-white font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Affiancati
             </button>
             <button
               onClick={() => setActiveLayout('email-only')}
-              className={`px-2.5 py-1 rounded-md transition-colors ${
-                activeLayout === 'email-only' ? 'bg-white text-slate-900 font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-800'
+              className={`px-3 py-1 rounded-md transition-all duration-150 active:scale-95 ${
+                activeLayout === 'email-only' ? 'bg-slate-900 text-white font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Solo Email
             </button>
             <button
               onClick={() => setActiveLayout('calendar-only')}
-              className={`px-2.5 py-1 rounded-md transition-colors ${
-                activeLayout === 'calendar-only' ? 'bg-white text-slate-900 font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-800'
+              className={`px-3 py-1 rounded-md transition-all duration-150 active:scale-95 ${
+                activeLayout === 'calendar-only' ? 'bg-slate-900 text-white font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Solo Eventi
@@ -249,40 +249,44 @@ export const EmailCalendarUnifiedView: React.FC<EmailCalendarUnifiedViewProps> =
           <button
             onClick={onSync}
             disabled={isSyncing}
-            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-colors"
+            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-all duration-150 active:scale-95"
           >
             <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span>{isSyncing ? 'Sincronizzazione in corso...' : 'Sincronizza Ora'}</span>
+            <span>{isSyncing ? 'Sincronizzazione...' : 'Sincronizza Ora'}</span>
           </button>
         </div>
       </div>
 
-      {/* Connected Accounts Strip */}
+      {/* Connected Accounts Strip: Precision Surface */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-        <div className="p-3 rounded-xl bg-sky-50/70 border border-sky-100 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 rounded bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-[10px]">
+        <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs flex items-center justify-between">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-7 h-7 rounded-lg bg-slate-900 text-white flex items-center justify-center font-mono font-bold text-[10px] tracking-wider">
               LAV
             </div>
             <div>
-              <span className="font-semibold text-slate-800">Account Lavoro:</span>{' '}
-              <span className="text-sky-800 font-mono text-[11px]">{settings.workEmail}</span>
+              <div className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Lavoro</div>
+              <span className="text-slate-900 font-mono font-semibold text-[11px]">{settings.workEmail}</span>
             </div>
           </div>
-          <span className="text-[10px] text-sky-700 font-medium">Google Workspace</span>
+          <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+            Google Workspace
+          </span>
         </div>
 
-        <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-100 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 rounded bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px]">
+        <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs flex items-center justify-between">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-mono font-bold text-[10px] tracking-wider">
               PER
             </div>
             <div>
-              <span className="font-semibold text-slate-800">Account Personale:</span>{' '}
-              <span className="text-emerald-800 font-mono text-[11px]">{settings.personalEmail}</span>
+              <div className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Personale</div>
+              <span className="text-slate-900 font-mono font-semibold text-[11px]">{settings.personalEmail}</span>
             </div>
           </div>
-          <span className="text-[10px] text-emerald-700 font-medium">Gmail Privato</span>
+          <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+            Gmail Privato
+          </span>
         </div>
       </div>
 

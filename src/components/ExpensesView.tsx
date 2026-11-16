@@ -180,40 +180,60 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         </div>
       )}
 
-      {/* Flat Pastel Summary Cards */}
+      {/* Executive Financial Ledger Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-xs">
-          <div className="text-xs text-slate-500 font-medium">Totale Mensile Stimato</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">€ {totalMonthly.toFixed(2)}</div>
-          <div className="text-[11px] text-slate-400 mt-0.5">{expenses.length} spese registrate</div>
-        </div>
-
-        <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-100 shadow-xs">
-          <div className="text-xs text-emerald-800 font-medium">Già Saldato questo Mese</div>
-          <div className="text-2xl font-bold text-emerald-800 mt-1">€ {totalPaid.toFixed(2)}</div>
-          <div className="text-[11px] text-emerald-700 mt-0.5">
-            {expenses.filter(e => e.isPaid).length} pagate
+        <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center justify-between text-xs text-slate-500 font-mono">
+            <span className="uppercase tracking-wider text-[11px]">Totale Mensile Stimato</span>
+            <span className="text-[10px] text-slate-400">{expenses.length} uscite</span>
+          </div>
+          <div className="text-2xl font-bold font-mono text-slate-900 tracking-tight mt-1.5">
+            € {totalMonthly.toFixed(2)}
+          </div>
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-900" />
+            <span>Base ricorrente fissa</span>
           </div>
         </div>
 
-        <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-100 shadow-xs">
-          <div className="text-xs text-amber-800 font-medium">Da Saldare Manualmente</div>
-          <div className="text-2xl font-bold text-amber-800 mt-1">€ {totalManualToPay.toFixed(2)}</div>
-          <div className="text-[11px] text-amber-700 mt-0.5">
-            {expenses.filter(e => !e.isPaid && !e.isAutoDebit).length} manuali ({expenses.filter(e => e.isAutoDebit).length} addebito auto)
+        <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center justify-between text-xs text-slate-500 font-mono">
+            <span className="uppercase tracking-wider text-[11px]">Già Saldato questo Mese</span>
+            <span className="text-[10px] text-emerald-600 font-semibold">{expenses.filter(e => e.isPaid).length} pagate</span>
+          </div>
+          <div className="text-2xl font-bold font-mono text-emerald-600 tracking-tight mt-1.5">
+            € {totalPaid.toFixed(2)}
+          </div>
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span>Transazioni concluse</span>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center justify-between text-xs text-slate-500 font-mono">
+            <span className="uppercase tracking-wider text-[11px]">Da Saldare Manualmente</span>
+            <span className="text-[10px] text-amber-600 font-semibold">{expenses.filter(e => !e.isPaid && !e.isAutoDebit).length} pendenti</span>
+          </div>
+          <div className="text-2xl font-bold font-mono text-amber-600 tracking-tight mt-1.5">
+            € {totalManualToPay.toFixed(2)}
+          </div>
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span>{expenses.filter(e => e.isAutoDebit).length} addebito auto separato</span>
           </div>
         </div>
       </div>
 
       {/* Edit Modal / Box */}
       {editingExpense && (
-        <form onSubmit={handleSaveEdit} className="p-4 rounded-xl bg-sky-50/80 border border-sky-200 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-bold text-sky-900 uppercase tracking-wider">Modifica Spesa: {editingExpense.name}</div>
+        <form onSubmit={handleSaveEdit} className="p-4 rounded-xl bg-white border border-slate-300 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div className="text-xs font-bold font-mono text-slate-900 uppercase tracking-wider">Modifica Spesa: {editingExpense.name}</div>
             <button
               type="button"
               onClick={() => setEditingExpense(null)}
-              className="p-1 text-slate-500 hover:text-slate-800"
+              className="p-1 text-slate-400 hover:text-slate-700 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -221,34 +241,34 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
-              <label className="block text-xs text-slate-700 mb-1">Nome Spesa</label>
+              <label className="block text-xs font-mono text-slate-600 mb-1">Nome Spesa</label>
               <input
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-sky-500"
+                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-slate-400"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs text-slate-700 mb-1">Importo (€)</label>
+              <label className="block text-xs font-mono text-slate-600 mb-1">Importo (€)</label>
               <input
                 type="number"
                 step="0.01"
                 value={editAmount}
                 onChange={(e) => setEditAmount(e.target.value)}
-                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-sky-500"
+                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-400"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs text-slate-700 mb-1">Categoria</label>
+              <label className="block text-xs font-mono text-slate-600 mb-1">Categoria</label>
               <select
                 value={editCategory}
                 onChange={(e) => setEditCategory(e.target.value as any)}
-                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-sky-500"
+                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-slate-400"
               >
                 <option value="Casa">Casa</option>
                 <option value="Utenze">Utenze</option>
@@ -260,14 +280,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs text-slate-700 mb-1">Giorno Scadenza (1-31)</label>
+              <label className="block text-xs font-mono text-slate-600 mb-1">Giorno Scadenza (1-31)</label>
               <input
                 type="number"
                 min="1"
                 max="31"
                 value={editDueDay}
                 onChange={(e) => setEditDueDay(e.target.value)}
-                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-sky-500"
+                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 font-mono focus:outline-none focus:border-slate-400"
               />
             </div>
           </div>

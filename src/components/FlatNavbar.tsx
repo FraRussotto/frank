@@ -38,20 +38,20 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
       <div className="max-w-[1550px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
           
-          {/* Logo Brand */}
+          {/* Logo Brand: Precision Executive Aesthetic */}
           <Link
             to="/"
             className="flex items-center space-x-2.5 group cursor-pointer select-none"
           >
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-xs group-hover:bg-indigo-700 transition-colors">
+            <div className="w-7 h-7 rounded-lg bg-slate-900 flex items-center justify-center text-white font-bold text-xs shadow-xs group-hover:bg-slate-800 transition-colors tracking-wider font-mono">
               F
             </div>
             <div className="flex items-center space-x-1.5">
-              <span className="font-bold text-sm tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors">
+              <span className="font-extrabold text-sm tracking-tight text-slate-900 group-hover:text-indigo-600 transition-colors">
                 Frank
               </span>
-              <span className="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200/60 hidden sm:inline">
-                Brain
+              <span className="text-[9px] uppercase tracking-wider font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200/80 hidden sm:inline">
+                Second Brain
               </span>
             </div>
           </Link>
@@ -64,14 +64,14 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
               to="/"
               end
               className={({ isActive }) =>
-                `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 active:scale-[0.98] ${
                   isActive
-                    ? 'bg-slate-100 text-slate-900 font-semibold shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    ? 'bg-slate-900 text-white font-semibold shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`
               }
             >
-              <LayoutDashboard className="w-3.5 h-3.5 text-slate-500" />
+              <LayoutDashboard className="w-3.5 h-3.5" />
               <span>Panoramica</span>
             </NavLink>
 
@@ -79,14 +79,14 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
             <NavLink
               to="/agente"
               className={({ isActive }) =>
-                `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 active:scale-[0.98] ${
                   isActive
-                    ? 'bg-indigo-50 text-indigo-900 border border-indigo-200/90 font-semibold shadow-2xs'
-                    : 'text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50/50'
+                    ? 'bg-indigo-600 text-white font-semibold shadow-xs'
+                    : 'text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50/60'
                 }`
               }
             >
-              <Brain className="w-3.5 h-3.5 text-indigo-600" />
+              <Brain className="w-3.5 h-3.5" />
               <span>Super Agente</span>
             </NavLink>
 
@@ -94,19 +94,25 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
             <NavLink
               to="/lavoro"
               className={({ isActive }) =>
-                `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 active:scale-[0.98] ${
                   isActive
-                    ? 'bg-slate-100 text-slate-900 font-semibold shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    ? 'bg-slate-900 text-white font-semibold shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`
               }
             >
-              <MailCheck className="w-3.5 h-3.5 text-slate-500" />
-              <span>Lavoro</span>
-              {pendingRequestsCount > 0 && (
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-sky-100 text-sky-800 font-medium">
-                  {pendingRequestsCount}
-                </span>
+              {({ isActive }) => (
+                <>
+                  <MailCheck className="w-3.5 h-3.5" />
+                  <span>Lavoro</span>
+                  {pendingRequestsCount > 0 && (
+                    <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full font-semibold ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-800'
+                    }`}>
+                      {pendingRequestsCount}
+                    </span>
+                  )}
+                </>
               )}
             </NavLink>
 
@@ -115,19 +121,25 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
               <NavLink
                 to="/spese"
                 className={({ isActive }) =>
-                  `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 active:scale-[0.98] ${
                     isActive
-                      ? 'bg-slate-100 text-slate-900 font-semibold shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      ? 'bg-slate-900 text-white font-semibold shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                   }`
                 }
               >
-                <CreditCard className="w-3.5 h-3.5 text-slate-500" />
-                <span>Spese</span>
-                {unpaidExpensesCount > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-900 font-medium">
-                    {unpaidExpensesCount}
-                  </span>
+                {({ isActive }) => (
+                  <>
+                    <CreditCard className="w-3.5 h-3.5" />
+                    <span>Spese</span>
+                    {unpaidExpensesCount > 0 && (
+                      <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full font-semibold ${
+                        isActive ? 'bg-amber-400 text-slate-950' : 'bg-amber-100 text-amber-900'
+                      }`}>
+                        {unpaidExpensesCount}
+                      </span>
+                    )}
+                  </>
                 )}
               </NavLink>
             )}
@@ -136,14 +148,14 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
             <NavLink
               to="/scadenze"
               className={({ isActive }) =>
-                `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 active:scale-[0.98] ${
                   isActive
-                    ? 'bg-amber-50 text-amber-950 border border-amber-200/90 font-semibold shadow-2xs'
-                    : 'text-amber-800 hover:text-amber-950 hover:bg-amber-50/60'
+                    ? 'bg-slate-900 text-white font-semibold shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`
               }
             >
-              <CalendarCheck className="w-3.5 h-3.5 text-amber-600" />
+              <CalendarCheck className="w-3.5 h-3.5" />
               <span>Scadenze</span>
             </NavLink>
 
@@ -151,14 +163,14 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
             <NavLink
               to="/documenti"
               className={({ isActive }) =>
-                `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                `flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 active:scale-[0.98] ${
                   isActive
-                    ? 'bg-slate-100 text-slate-900 font-semibold shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    ? 'bg-slate-900 text-white font-semibold shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`
               }
             >
-              <FileText className="w-3.5 h-3.5 text-slate-500" />
+              <FileText className="w-3.5 h-3.5" />
               <span>Documenti</span>
             </NavLink>
 
@@ -171,10 +183,10 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
             <button
               onClick={onSyncAll}
               disabled={isSyncing}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-medium transition-colors"
-              title="Sincronizza caselle email e calendario"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 text-xs font-medium shadow-2xs hover:border-slate-300 transition-all duration-150 active:scale-95 disabled:opacity-50"
+              title="Sincronizza caselle email e calendario con Google"
             >
-              <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-sky-600' : 'text-slate-500'}`} />
+              <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-indigo-600' : 'text-slate-500'}`} />
               <span className="hidden sm:inline">
                 {isSyncing ? 'In sync...' : 'Sincronizza'}
               </span>
@@ -184,10 +196,10 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
             {onOpenTelegram && (
               <button
                 onClick={onOpenTelegram}
-                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-semibold transition-colors"
+                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-sky-50/80 hover:bg-sky-100 text-sky-700 border border-sky-200/80 text-xs font-semibold shadow-2xs transition-all duration-150 active:scale-95"
                 title="Configura Bot Telegram e notifiche del mattino"
               >
-                <Send className="w-3.5 h-3.5 -rotate-12 translate-x-0.5" />
+                <Send className="w-3.5 h-3.5 -rotate-12 translate-x-0.5 text-sky-600" />
                 <span className="hidden lg:inline">Telegram</span>
               </button>
             )}
@@ -195,7 +207,7 @@ export const FlatNavbar: React.FC<FlatNavbarProps> = ({
             {/* Settings */}
             <button
               onClick={onOpenSettings}
-              className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 transition-colors"
+              className="p-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 border border-slate-200/90 shadow-2xs transition-all duration-150 active:scale-95"
               title="Impostazioni Account e AI"
             >
               <Settings className="w-4 h-4" />

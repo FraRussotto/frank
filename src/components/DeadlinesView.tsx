@@ -215,18 +215,18 @@ export const DeadlinesView: React.FC<DeadlinesViewProps> = ({ onNavigateTab }) =
         </div>
       )}
 
-      {/* Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs">
+      {/* Header Bar: Executive Command Bar */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-amber-500 flex items-center justify-center text-white shadow-xs">
-              <CalendarCheck className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-xs">
+              <CalendarCheck className="w-4 h-4 text-slate-100" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                Scadenze
-                <span className="text-[10px] uppercase font-mono font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
-                  Vita Personale
+              <h1 className="text-lg font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
+                Scadenzario
+                <span className="text-[10px] uppercase font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                  Vita & Fisco
                 </span>
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -236,20 +236,20 @@ export const DeadlinesView: React.FC<DeadlinesViewProps> = ({ onNavigateTab }) =
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleSyncWithSubagents}
             disabled={isSyncing}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all duration-150 active:scale-95 disabled:opacity-50"
             title="Frank interroga Email, Calendario, Finanze e Documenti per scansionare nuove scadenze"
           >
-            <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-indigo-600' : ''}`} />
-            <span>{isSyncing ? 'Scansione in corso...' : 'Sincronizza con Frank'}</span>
+            <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-slate-900' : ''}`} />
+            <span>{isSyncing ? 'Scansione...' : 'Sincronizza Reparti'}</span>
           </button>
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-xs transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-xs transition-all duration-150 active:scale-95"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Nuova Scadenza</span>
@@ -257,78 +257,88 @@ export const DeadlinesView: React.FC<DeadlinesViewProps> = ({ onNavigateTab }) =
         </div>
       </div>
 
-      {/* KPI Cards: Panoramica Scadenze */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Cards: Precision Overview */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Scadute / In scadenza oggi */}
         <div
           onClick={() => setSelectedStatus('due_soon')}
-          className="p-4 rounded-xl bg-white border border-rose-200/90 shadow-2xs cursor-pointer hover:border-rose-400 transition-colors"
+          className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs cursor-pointer hover:border-slate-300 transition-all duration-150 active:scale-[0.99]"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-rose-800">Scadono a Breve</span>
-            <AlertTriangle className="w-4 h-4 text-rose-600" />
+          <div className="flex items-center justify-between text-xs text-slate-500 font-mono">
+            <span className="uppercase tracking-wider text-[11px]">Scadono a Breve</span>
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-rose-900">
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-2xl font-bold font-mono text-slate-900 tracking-tight">
               {summary.today.length + summary.dueSoon.length + summary.overdue.length}
             </span>
-            <span className="text-[11px] text-rose-700 font-medium">
-              ({summary.today.length} oggi, {summary.dueSoon.length} entro 72h)
+            <span className="text-[11px] font-mono text-slate-500">
+              ({summary.today.length} oggi, {summary.dueSoon.length} 72h)
             </span>
           </div>
-          <p className="text-[11px] text-rose-700/80 mt-1">Richiedono attenzione immediata</p>
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-amber-600">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span>Richiedono attenzione</span>
+          </div>
         </div>
 
         {/* Totale Cose da Fare */}
         <div
           onClick={() => setSelectedStatus('pending')}
-          className="p-4 rounded-xl bg-white border border-indigo-200/90 shadow-2xs cursor-pointer hover:border-indigo-400 transition-colors"
+          className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs cursor-pointer hover:border-slate-300 transition-all duration-150 active:scale-[0.99]"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-indigo-800">Attività Aperte</span>
-            <Clock className="w-4 h-4 text-indigo-600" />
+          <div className="flex items-center justify-between text-xs text-slate-500 font-mono">
+            <span className="uppercase tracking-wider text-[11px]">Attività Aperte</span>
+            <Clock className="w-4 h-4 text-slate-400" />
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-indigo-900">{summary.totalPending}</span>
-            <span className="text-[11px] text-indigo-700 font-medium">in carico a Frank</span>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-2xl font-bold font-mono text-slate-900 tracking-tight">{summary.totalPending}</span>
+            <span className="text-[11px] font-mono text-slate-400">in carico</span>
           </div>
-          <p className="text-[11px] text-indigo-700/80 mt-1">
-            {summary.highPriorityCount} ad alta priorità
-          </p>
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-900" />
+            <span>{summary.highPriorityCount} priorità alta</span>
+          </div>
         </div>
 
         {/* Future */}
         <div
           onClick={() => setSelectedStatus('pending')}
-          className="p-4 rounded-xl bg-white border border-slate-200/90 shadow-2xs cursor-pointer hover:border-slate-300 transition-colors"
+          className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs cursor-pointer hover:border-slate-300 transition-all duration-150 active:scale-[0.99]"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-700">Programmate Future</span>
-            <Calendar className="w-4 h-4 text-slate-500" />
+          <div className="flex items-center justify-between text-xs text-slate-500 font-mono">
+            <span className="uppercase tracking-wider text-[11px]">Programmate Future</span>
+            <Calendar className="w-4 h-4 text-slate-400" />
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">{summary.future.length}</span>
-            <span className="text-[11px] text-slate-500 font-medium">oltre preavviso</span>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-2xl font-bold font-mono text-slate-900 tracking-tight">{summary.future.length}</span>
+            <span className="text-[11px] font-mono text-slate-400">oltre preavviso</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">Sotto monitoraggio automatico</p>
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+            <span>Monitoraggio automatico</span>
+          </div>
         </div>
 
         {/* Completate */}
         <div
           onClick={() => setSelectedStatus('completed')}
-          className="p-4 rounded-xl bg-white border border-emerald-200/90 shadow-2xs cursor-pointer hover:border-emerald-400 transition-colors"
+          className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs cursor-pointer hover:border-slate-300 transition-all duration-150 active:scale-[0.99]"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-emerald-800">Archiviate / Chiuse</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <div className="flex items-center justify-between text-xs text-slate-500 font-mono">
+            <span className="uppercase tracking-wider text-[11px]">Archiviate / Chiuse</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-emerald-900">
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-2xl font-bold font-mono text-slate-900 tracking-tight">
               {deadlines.filter(d => d.status === 'completed').length}
             </span>
-            <span className="text-[11px] text-emerald-700 font-medium">completate</span>
+            <span className="text-[11px] font-mono text-emerald-600">completate</span>
           </div>
-          <p className="text-[11px] text-emerald-700/80 mt-1">Storico attività eseguite</p>
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span>Adempimenti saldati</span>
+          </div>
         </div>
       </div>
 

@@ -112,29 +112,25 @@ export const SuperAgentView: React.FC<SuperAgentViewProps> = ({
 
   return (
     <div className="space-y-6 pb-12">
-      {/* 1. Header Super Agente Cockpit */}
-      <div className="rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 p-6 text-white shadow-sm relative overflow-hidden">
-        {/* Glow decorative element */}
-        <div className="absolute -right-16 -top-16 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute right-40 -bottom-20 w-48 h-48 bg-sky-500/10 rounded-full blur-2xl pointer-events-none" />
-
+      {/* 1. Header Super Agente Cockpit: Executive Command Deck */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 text-white shadow-xs relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-900 text-slate-300 border border-slate-800">
                 <Brain className="w-3.5 h-3.5 text-indigo-400" />
-                Super Agente Coordinatore
+                COORDINATOR CORE
               </span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Autonomo • Attivo
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                ACTIVE AUTONOMOUS
               </span>
             </div>
             <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
               Frank Master Brain
-              <span className="text-xs font-medium text-slate-400 font-mono">v2.0</span>
+              <span className="text-xs font-mono font-semibold text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">v2.0</span>
             </h1>
-            <p className="text-xs text-slate-300 max-w-2xl mt-1 leading-relaxed">
+            <p className="text-xs text-slate-400 max-w-2xl mt-1.5 leading-relaxed font-sans">
               Il Super Agente sovrintende, orchestra e sintetizza i subagenti specializzati di Frank (Email, Calendario, Finanze, Documenti) garantendoti visione strategica e priorità unificate.
             </p>
           </div>
@@ -143,45 +139,45 @@ export const SuperAgentView: React.FC<SuperAgentViewProps> = ({
             <button
               onClick={onGenerateBriefing}
               disabled={isOrchestrating}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white border border-white/15 text-xs font-semibold backdrop-blur-sm transition-all shadow-2xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 text-xs font-semibold transition-all duration-150 active:scale-95 disabled:opacity-50"
             >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
               <span>Rigenera Briefing</span>
             </button>
 
             <button
               onClick={onRefreshAll}
               disabled={isOrchestrating}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold transition-all shadow-xs disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all duration-150 active:scale-95 disabled:opacity-50 shadow-xs"
             >
               <RotateCw className={`w-3.5 h-3.5 ${isOrchestrating ? 'animate-spin' : ''}`} />
-              <span>{isOrchestrating ? 'Orchestrazione in corso...' : 'Sincronizza Tutti i Subagenti'}</span>
+              <span>{isOrchestrating ? 'Orchestrazione...' : 'Sincronizza Subagenti'}</span>
             </button>
           </div>
         </div>
 
         {/* Live Metrics Ribbon */}
         {briefing && (
-          <div className="mt-5 pt-4 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
-              <span className="text-[11px] text-slate-400 block">Task Email Attivi</span>
-              <span className="text-base font-bold text-white mt-0.5 block">{briefing.stats.activeEmailTasks}</span>
-              <span className="text-[10px] text-indigo-300">da 7 thread caldi</span>
+          <div className="mt-5 pt-4 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="bg-slate-900/80 rounded-xl p-3 border border-slate-800">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">Task Email Attivi</span>
+              <span className="text-xl font-bold font-mono text-white mt-1 block">{briefing.stats.activeEmailTasks}</span>
+              <span className="text-[10px] text-slate-400 font-mono">da thread caldi</span>
             </div>
-            <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
-              <span className="text-[11px] text-slate-400 block">Riunioni in Agenda</span>
-              <span className="text-base font-bold text-white mt-0.5 block">{briefing.stats.upcomingMeetings}</span>
-              <span className="text-[10px] text-sky-300">prossimi 14 giorni</span>
+            <div className="bg-slate-900/80 rounded-xl p-3 border border-slate-800">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">Riunioni in Agenda</span>
+              <span className="text-xl font-bold font-mono text-white mt-1 block">{briefing.stats.upcomingMeetings}</span>
+              <span className="text-[10px] text-slate-400 font-mono">prossimi 14 giorni</span>
             </div>
-            <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
-              <span className="text-[11px] text-slate-400 block">Spese da Saldare</span>
-              <span className="text-base font-bold text-white mt-0.5 block">€{briefing.stats.unpaidExpensesAmount}</span>
-              <span className="text-[10px] text-amber-300">{briefing.stats.unpaidExpensesCount} voci mese</span>
+            <div className="bg-slate-900/80 rounded-xl p-3 border border-slate-800">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">Spese da Saldare</span>
+              <span className="text-xl font-bold font-mono text-amber-400 mt-1 block">€{briefing.stats.unpaidExpensesAmount}</span>
+              <span className="text-[10px] text-slate-400 font-mono">{briefing.stats.unpaidExpensesCount} voci mese</span>
             </div>
-            <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
-              <span className="text-[11px] text-slate-400 block">Knowledge & Docs</span>
-              <span className="text-base font-bold text-white mt-0.5 block">{briefing.stats.indexedDocsCount} doc</span>
-              <span className="text-[10px] text-emerald-300">indicizzati per RAG</span>
+            <div className="bg-slate-900/80 rounded-xl p-3 border border-slate-800">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">Knowledge & Docs</span>
+              <span className="text-xl font-bold font-mono text-emerald-400 mt-1 block">{briefing.stats.indexedDocsCount} doc</span>
+              <span className="text-[10px] text-slate-400 font-mono">frammenti RAG</span>
             </div>
           </div>
         )}

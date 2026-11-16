@@ -101,62 +101,63 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   return (
     <div className="space-y-6 w-full pb-12">
       
-      {/* Welcome Banner Flat Pastel */}
-        <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight">Panoramica Frank</h1>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
-                Second Brain Hub
-              </span>
-              {agentStatus && (
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
-                  agentStatus.isProcessing
-                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200 animate-pulse'
-                    : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                }`}>
-                  <Brain className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>
-                    {agentStatus.isProcessing
-                      ? `Frank Agent: studio thread in corso (${agentStatus.analyzedCount}/${agentStatus.totalCount})...`
-                      : `Frank Agent: ${agentStatus.analyzedCount}/${agentStatus.totalCount} thread studiati`}
-                  </span>
+      {/* 1. Executive Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Panoramica</h1>
+            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold border border-slate-200/80">
+              Executive Cockpit
+            </span>
+            {agentStatus && (
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono border font-medium ${
+                agentStatus.isProcessing
+                  ? 'bg-indigo-50 text-indigo-800 border-indigo-200 animate-pulse'
+                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${agentStatus.isProcessing ? 'bg-indigo-600 animate-ping' : 'bg-emerald-500'}`} />
+                <span>
+                  {agentStatus.isProcessing
+                    ? `Frank Agent: studio (${agentStatus.analyzedCount}/${agentStatus.totalCount})...`
+                    : `Agent: ${agentStatus.analyzedCount}/${agentStatus.totalCount} thread sincronizzati`}
                 </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Budget e uscite fisse, eventi da 2 account email, richieste operative estratte con AI e archivio RAG.
-            </p>
+              </span>
+            )}
           </div>
-
-          <div className="flex items-center space-x-2 shrink-0">
-            <button
-              onClick={onSyncAll}
-              disabled={isSyncing}
-              className="flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-medium transition-colors"
-            >
-              <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-sky-600' : 'text-slate-500'}`} />
-              <span>{isSyncing ? 'Sincronizzazione...' : 'Sincronizza Dati'}</span>
-            </button>
-          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Quadro esecutivo: scadenze, impegni a calendario, compiti estratti con AI e bilancio mensile.
+          </p>
         </div>
 
-        {/* 2. Preventive Alert: Proactive Deadlines & Action Items */}
-        {imminentCount > 0 && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/70 border border-amber-200/90 shadow-2xs space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-amber-200/60 pb-3">
+        <div className="flex items-center space-x-2 shrink-0">
+          <button
+            onClick={onSyncAll}
+            disabled={isSyncing}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 text-xs font-semibold shadow-2xs hover:border-slate-300 transition-all duration-150 active:scale-95 disabled:opacity-50"
+            title="Sincronizza subito Gmail e Google Calendar"
+          >
+            <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-indigo-600' : 'text-slate-500'}`} />
+            <span>{isSyncing ? 'Sincronizzazione...' : 'Sincronizza Dati'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 2. Preventive Alert: Proactive Deadlines & Action Items */}
+      {imminentCount > 0 && (
+        <div className="p-4 sm:p-5 rounded-xl bg-white border-l-4 border-l-amber-500 border border-slate-200/80 shadow-2xs space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-2xs">
                 <AlertTriangle className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
                   Promemoria Scadenze Personali: {imminentCount} {imminentCount === 1 ? 'scadenza a breve' : 'scadenze a breve'}
-                  <span className="text-[10px] lowercase font-normal px-2 py-0.2 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                  <span className="text-[10px] font-mono lowercase font-semibold px-2 py-0.2 rounded-full bg-amber-100 text-amber-900 border border-amber-300/80">
                     prossime 72h
                   </span>
                 </h3>
-                <p className="text-xs text-amber-800 mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Spese, pagamenti e adempimenti della tua vita personale sotto monitoraggio preventivo.
                 </p>
               </div>
@@ -164,10 +165,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
             <button
               onClick={() => onNavigateTab('deadlines')}
-              className="flex items-center gap-1 text-xs font-bold text-amber-900 hover:text-amber-950 bg-white/80 hover:bg-white px-3 py-1.5 rounded-xl border border-amber-200 shadow-2xs self-start sm:self-auto transition-colors"
+              className="flex items-center gap-1 text-xs font-bold text-slate-800 hover:text-slate-950 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs self-start sm:self-auto transition-all duration-150 active:scale-95"
             >
               <span>Vedi scadenze personali</span>
-              <ArrowRight className="w-3.5 h-3.5 text-amber-700" />
+              <ArrowRight className="w-3.5 h-3.5 text-slate-600" />
             </button>
           </div>
 
@@ -176,10 +177,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               <div
                 key={item.id}
                 onClick={() => onNavigateTab('deadlines')}
-                className="p-3 rounded-xl bg-white border border-amber-200/80 hover:border-amber-300 shadow-2xs cursor-pointer transition-all hover:translate-y-[-1px]"
+                className="p-3 rounded-xl bg-slate-50/60 border border-slate-200/80 hover:border-slate-300 hover:bg-white shadow-2xs cursor-pointer transition-all duration-150 hover:translate-y-[-1px]"
               >
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-900">
                     {item.daysRemaining === 0 ? 'SCADE OGGI' : item.daysRemaining === 1 ? 'Entro Domani' : `Tra ${item.daysRemaining} gg`}
                   </span>
                   <span className="text-[10px] font-mono text-slate-400">
@@ -198,68 +199,88 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
       )}
 
-      {/* 4 Summary Stat Cards (Soft Pastel) */}
-      <div className={`grid gap-3 ${showExpenses ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3'}`}>
+      {/* 3. Four High-Precision Metric Cards */}
+      <div className={`grid gap-3.5 ${showExpenses ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3'}`}>
         
-        {/* Card Spese (Soft Sky) - visibile solo se showExpenses è attivo */}
+        {/* Card Spese */}
         {showExpenses && (
           <div
             onClick={() => onNavigateTab('expenses')}
-            className="p-4 rounded-xl bg-sky-50/60 border border-sky-100/90 hover:border-sky-200 cursor-pointer transition-all hover:shadow-xs"
+            className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs hover:border-slate-300 hover:shadow-xs cursor-pointer transition-all duration-150 active:scale-[0.99] group"
           >
-            <div className="flex items-center justify-between text-sky-800 text-xs">
-              <span className="font-semibold">Spese Fisse Mese</span>
-              <CreditCard className="w-4 h-4 text-sky-600" />
+            <div className="flex items-center justify-between text-slate-500 text-xs">
+              <span className="font-semibold uppercase tracking-wider text-[11px] text-slate-500 group-hover:text-slate-800 transition-colors">
+                Spese del Mese
+              </span>
+              <CreditCard className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
             </div>
-            <div className="mt-2 text-xl font-bold text-slate-900">€ {totalMonthlyExpenses.toFixed(2)}</div>
-            <div className="text-[11px] text-sky-700 font-medium mt-0.5">
-              {unpaidExpenses.length} da saldare
+            <div className="mt-2 text-2xl font-bold font-mono text-slate-900 tracking-tight">
+              € {totalMonthlyExpenses.toFixed(2)}
+            </div>
+            <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <span className="text-slate-600">{unpaidExpenses.length} voci da saldare</span>
             </div>
           </div>
         )}
 
-        {/* Card Eventi (Soft Mint) */}
+        {/* Card Eventi */}
         <div
           onClick={() => onNavigateTab('email-calendar')}
-          className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-100/90 hover:border-emerald-200 cursor-pointer transition-all hover:shadow-xs"
+          className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs hover:border-slate-300 hover:shadow-xs cursor-pointer transition-all duration-150 active:scale-[0.99] group"
         >
-          <div className="flex items-center justify-between text-emerald-800 text-xs">
-            <span className="font-semibold">Eventi & Calendario</span>
-            <Calendar className="w-4 h-4 text-emerald-600" />
+          <div className="flex items-center justify-between text-slate-500 text-xs">
+            <span className="font-semibold uppercase tracking-wider text-[11px] text-slate-500 group-hover:text-slate-800 transition-colors">
+              Agenda & Riunioni
+            </span>
+            <Calendar className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
           </div>
-          <div className="mt-2 text-xl font-bold text-slate-900">{events.length} impegni</div>
-          <div className="text-[11px] text-emerald-700 font-medium mt-0.5">
-            Lavoro + Personale
+          <div className="mt-2 text-2xl font-bold font-mono text-slate-900 tracking-tight">
+            {events.length} <span className="text-sm font-sans font-normal text-slate-400">impegni</span>
+          </div>
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span className="text-slate-600">Lavoro + Personale</span>
           </div>
         </div>
 
-        {/* Card Email AI (Soft Peach/Amber) */}
+        {/* Card Email AI */}
         <div
           onClick={() => onNavigateTab('email-calendar')}
-          className="p-4 rounded-xl bg-amber-50/60 border border-amber-100/90 hover:border-amber-200 cursor-pointer transition-all hover:shadow-xs"
+          className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs hover:border-slate-300 hover:shadow-xs cursor-pointer transition-all duration-150 active:scale-[0.99] group"
         >
-          <div className="flex items-center justify-between text-amber-800 text-xs">
-            <span className="font-semibold">Email AI Agent</span>
-            <MailCheck className="w-4 h-4 text-amber-600" />
+          <div className="flex items-center justify-between text-slate-500 text-xs">
+            <span className="font-semibold uppercase tracking-wider text-[11px] text-slate-500 group-hover:text-slate-800 transition-colors">
+              Task Email AI
+            </span>
+            <MailCheck className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
           </div>
-          <div className="mt-2 text-xl font-bold text-slate-900">{pendingRequests.length} aperte</div>
-          <div className="text-[11px] text-amber-700 font-medium mt-0.5">
-            To-do estratti da Gmail
+          <div className="mt-2 text-2xl font-bold font-mono text-slate-900 tracking-tight">
+            {pendingRequests.length} <span className="text-sm font-sans font-normal text-slate-400">in attesa</span>
+          </div>
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+            <span className="text-slate-600">Richieste operative Gmail</span>
           </div>
         </div>
 
-        {/* Card Note & RAG (Soft Lavender) */}
+        {/* Card Note & RAG */}
         <div
           onClick={() => onNavigateTab('docs-rag')}
-          className="p-4 rounded-xl bg-purple-50/60 border border-purple-100/90 hover:border-purple-200 cursor-pointer transition-all hover:shadow-xs"
+          className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-2xs hover:border-slate-300 hover:shadow-xs cursor-pointer transition-all duration-150 active:scale-[0.99] group"
         >
-          <div className="flex items-center justify-between text-purple-800 text-xs">
-            <span className="font-semibold">Documenti & RAG</span>
-            <FileText className="w-4 h-4 text-purple-600" />
+          <div className="flex items-center justify-between text-slate-500 text-xs">
+            <span className="font-semibold uppercase tracking-wider text-[11px] text-slate-500 group-hover:text-slate-800 transition-colors">
+              Archivio RAG
+            </span>
+            <FileText className="w-4 h-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
           </div>
-          <div className="mt-2 text-xl font-bold text-slate-900">{documents.length} doc</div>
-          <div className="text-[11px] text-purple-700 font-medium mt-0.5">
-            {chunks.length} frammenti RAG
+          <div className="mt-2 text-2xl font-bold font-mono text-slate-900 tracking-tight">
+            {documents.length} <span className="text-sm font-sans font-normal text-slate-400">file</span>
+          </div>
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium font-mono">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+            <span className="text-slate-600">{chunks.length} frammenti vettoriali</span>
           </div>
         </div>
 
