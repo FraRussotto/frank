@@ -459,7 +459,25 @@ export class FrankSuperAgent {
 
     // A. Delega al Subagente Knowledge & RAG
     if (isDocRelated || isGeneralStatus) {
-      const sources = clientContext?.sources || [];
+      let sources = clientContext?.sources || [];
+      const knowledgeAgent = this.subagents.get('knowledge') as KnowledgeSubagent | undefined;
+
+      // Se non ci sono fonti passate dal client (es. chiamata da Telegram o richiesta API diretta),
+      // il Knowledge Subagent cerca autonomamente nel database SQLite e nei documenti su disco!
+      if (sources.length === 0 && knowledgeAgent) {
+        try {
+          const autoFound = await knowledgeAgent.search(lastUserMessage, 4);
+          if (autoFound.length > 0) {
+            sources = autoFound.map(f => ({
+              documentTitle: f.documentTitle,
+              content: f.content
+            }));
+          }
+        } catch (searchErr) {
+          console.warn('Errore auto-ricerca knowledge subagent:', searchErr);
+        }
+      }
+
       if (sources.length > 0) {
         const docNames = Array.from(new Set(sources.map((s: any) => s.chunk?.documentTitle || s.documentTitle || 'Documento'))).join(', ');
         delegations.push({
@@ -469,7 +487,7 @@ export class FrankSuperAgent {
           detail: `Estratto da ${docNames}`
         });
         const docsText = sources
-          .slice(0, 3)
+          .slice(0, 4)
           .map((s: any) => `[FONTE: ${s.chunk?.documentTitle || s.documentTitle}]:\n${s.chunk?.content || s.content}`)
           .join('\n\n');
         contextBlocks.push(`=== 📄 DATI DAL SUBAGENTE KNOWLEDGE & RAG ===\n${docsText}`);
