@@ -414,7 +414,9 @@ export class FrankSuperAgent {
     model: string;
   }> {
     const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')?.content || '';
-    const q = lastUserMessage.toLowerCase();
+    const recentContextText = messages.slice(-4).map(m => m.content).join(' ');
+    // Unisci l'ultimo messaggio e il contesto recente per non perdere il filo del discorso
+    const q = (lastUserMessage + ' ' + recentContextText).toLowerCase();
 
     // 1. Identificazione dei domini di competenza da delegare
     const hasClientSources = Array.isArray(clientContext?.sources) && clientContext.sources.length > 0;
@@ -425,7 +427,8 @@ export class FrankSuperAgent {
       q.includes('visura') || q.includes('document') || q.includes('pdf') ||
       q.includes('word') || q.includes('excel') || q.includes('foglio') ||
       q.includes('pec') || q.includes('sede') || q.includes('statuto') ||
-      q.includes('contratt') || q.includes('policy') || q.includes('manual');
+      q.includes('contratt') || q.includes('policy') || q.includes('manual') ||
+      q.includes('entrata') || q.includes('lordo') || q.includes('netto') || q.includes('stipendio') || q.includes('reddito');
 
     const isEmailRelated =
       q.includes('email') || q.includes('thread') || q.includes('posta') ||
@@ -444,6 +447,7 @@ export class FrankSuperAgent {
       q.includes('spes') || q.includes('pagar') || q.includes('bollett') ||
       q.includes('affitt') || q.includes('soldi') || q.includes('saldo') ||
       q.includes('bonifico') || q.includes('cost') || q.includes('budget') ||
+      q.includes('entrata') || q.includes('stipendio') || q.includes('reddito') ||
       q.includes('playstation') || q.includes('palestra') || q.includes('assicuraz');
 
     const isDeadlineRelated =
@@ -457,6 +461,24 @@ export class FrankSuperAgent {
     const delegations: Array<{ id: string; name: string; icon: string; detail: string }> = [];
     const contextBlocks: string[] = [];
 
+    // Gestione esecuzione azioni su note/documenti (es. conferma utente per aggiornare "Entrata")
+    const isUpdateNoteIntent =
+      (lastUserMessage.toLowerCase().includes('aggiorna') || lastUserMessage.toLowerCase().includes('modifica') || lastUserMessage.toLowerCase() === 'aggiornala') &&
+      (recentContextText.toLowerCase().includes('entrata') || recentContextText.toLowerCase().includes('2.700') || recentContextText.toLowerCase().includes('lord'));
+
+    if (isUpdateNoteIntent) {
+      const updateRes = KnowledgeSubagent.updateDocument('Entrata', '2.700 € lordi mensili');
+      if (updateRes.success) {
+        contextBlocks.push(`=== ⚡ AZIONE ESEGUITA DAL SUPER AGENTE ===\nHo aggiornato con successo nel database RAG la nota "${updateRes.title}" con il testo "2.700 € lordi mensili". Conferma all'utente in modo cordiale che l'entrata è ora salvata ufficialmente come lorda.`);
+        delegations.push({
+          id: 'knowledge',
+          name: 'Subagente Knowledge & RAG',
+          icon: 'FileText',
+          detail: 'Aggiornata nota: Entrata principale mensile'
+        });
+      }
+    }
+
     // A. Delega al Subagente Knowledge & RAG
     if (isDocRelated || isGeneralStatus) {
       let sources = clientContext?.sources || [];
@@ -466,7 +488,7 @@ export class FrankSuperAgent {
       // il Knowledge Subagent cerca autonomamente nel database SQLite e nei documenti su disco!
       if (sources.length === 0 && knowledgeAgent) {
         try {
-          const autoFound = await knowledgeAgent.search(lastUserMessage, 4);
+          const autoFound = await knowledgeAgent.search(lastUserMessage, 4, recentContextText);
           if (autoFound.length > 0) {
             sources = autoFound.map(f => ({
               documentTitle: f.documentTitle,

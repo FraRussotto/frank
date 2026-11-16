@@ -16,7 +16,81 @@ class TelegramBotManager {
   private isInitializing = false;
 
   constructor() {
-    // Non avviare automaticamente nel costruttore per non bloccare build statiche
+    this.ensureHistoryTable();
+  }
+
+  private ensureHistoryTable() {
+    try {
+      const db = new DatabaseSync(FRANK_DB_PATH);
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS telegram_chat_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          chat_id TEXT,
+          role TEXT,
+          content TEXT,
+          created_at TEXT
+        );
+      `);
+      db.close();
+    } catch (e) {
+      console.warn('[Telegram Bot] ensureHistoryTable error:', e);
+    }
+  }
+
+  public getRecentChatHistory(chatId: string, limit = 8): Array<{ role: 'user' | 'assistant'; content: string }> {
+    try {
+      const db = new DatabaseSync(FRANK_DB_PATH, { readOnly: true });
+      const rows = db.prepare(`
+        SELECT role, content, created_at
+        FROM telegram_chat_history
+        WHERE chat_id = ?
+        ORDER BY id DESC
+        LIMIT ?
+      `).all(chatId, limit) as any[];
+      db.close();
+
+      if (!rows || rows.length === 0) return [];
+
+      // Se l'ultimo messaggio è di oltre 4 ore fa, azzera la sessione per non trascinare argomenti vecchi
+      const latestTime = new Date(rows[0].created_at).getTime();
+      const now = Date.now();
+      if (now - latestTime > 4 * 60 * 60 * 1000) {
+        this.clearChatHistory(chatId);
+        return [];
+      }
+
+      // Restituisce in ordine cronologico ascendente
+      return rows.reverse().map(r => ({
+        role: r.role as 'user' | 'assistant',
+        content: r.content
+      }));
+    } catch (e) {
+      console.warn('[Telegram Bot] getRecentChatHistory error:', e);
+      return [];
+    }
+  }
+
+  public appendChatMessage(chatId: string, role: 'user' | 'assistant', content: string) {
+    try {
+      const db = new DatabaseSync(FRANK_DB_PATH);
+      db.prepare(`
+        INSERT INTO telegram_chat_history (chat_id, role, content, created_at)
+        VALUES (?, ?, ?, ?)
+      `).run(chatId, role, content, new Date().toISOString());
+      db.close();
+    } catch (e) {
+      console.warn('[Telegram Bot] appendChatMessage error:', e);
+    }
+  }
+
+  public clearChatHistory(chatId: string) {
+    try {
+      const db = new DatabaseSync(FRANK_DB_PATH);
+      db.prepare('DELETE FROM telegram_chat_history WHERE chat_id = ?').run(chatId);
+      db.close();
+    } catch (e) {
+      console.warn('[Telegram Bot] clearChatHistory error:', e);
+    }
   }
 
   public getStatus() {
@@ -394,21 +468,39 @@ class TelegramBotManager {
       }
     });
 
-    // Messaggi testuali liberi in linguaggio naturale
+    // Comando /nuova o /reset per azzerare la cronologia della conversazione
+    this.bot.command(['nuova', 'reset'], async (ctx) => {
+      const chatId = String(ctx.chat.id);
+      this.clearChatHistory(chatId);
+      await ctx.reply('🧹 *Memoria della conversazione azzerata.*\nIniziamo una nuova sessione: di cosa vuoi parlare?', { parse_mode: 'Markdown' });
+    });
+
+    // Messaggi testuali liberi in linguaggio naturale con MEMORIA MULTI-TURN
     this.bot.on('message:text', async (ctx) => {
       const userText = ctx.message.text;
       if (userText.startsWith('/')) return; // Comandi già gestiti
+
+      const chatId = String(ctx.chat.id);
 
       // Simula digitazione
       await ctx.replyWithChatAction('typing');
 
       try {
-        // Interroga Frank Super Agent
-        const response = await superAgent.answerUserDialog([
-          { role: 'user', content: userText }
-        ]);
+        // Recupera cronologia recente per mantenere il contesto della conversazione
+        const history = this.getRecentChatHistory(chatId, 8);
+        const fullDialog = [...history, { role: 'user' as const, content: userText }];
+
+        // Salva messaggio utente nello storico persistente
+        this.appendChatMessage(chatId, 'user', userText);
+
+        // Interroga Frank Super Agent con l'intera sequenza della conversazione
+        const response = await superAgent.answerUserDialog(fullDialog);
 
         let replyText = response.text || 'Non sono riuscito a elaborare la risposta.';
+
+        // Salva risposta dell'assistente nello storico persistente per il turno successivo
+        this.appendChatMessage(chatId, 'assistant', replyText);
+
         await ctx.reply(replyText, { parse_mode: 'Markdown' }).catch(async () => {
           // Fallback se markdown Telegram contiene caratteri non escapati
           await ctx.reply(replyText);

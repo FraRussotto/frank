@@ -73,12 +73,33 @@ export class KnowledgeSubagent implements ISubagent {
   }
 
   /**
+   * Aggiorna o crea il contenuto testuale di un documento o nota nel RAG
+   */
+  public static updateDocument(titleOrId: string, newContent: string): { success: boolean; title?: string } {
+    try {
+      const db = new DatabaseSync(FRANK_DB_PATH);
+      const row = db.prepare('SELECT id, title, content FROM kb_documents WHERE id = ? OR title LIKE ? LIMIT 1').get(titleOrId, `%${titleOrId}%`) as any;
+      if (!row) {
+        db.close();
+        return { success: false };
+      }
+      db.prepare('UPDATE kb_documents SET content = ? WHERE id = ?').run(newContent, row.id);
+      db.close();
+      return { success: true, title: row.title };
+    } catch (e) {
+      console.error('Error updating document in SQLite:', e);
+      return { success: false };
+    }
+  }
+
+  /**
    * Ricerca semantica/lessicale avanzata all'interno dei documenti salvati nel database o su disco.
    * Usata sia dalla chat web sia da Telegram per trovare dati aziendali, Partita IVA, contratti e note.
    */
   public async search(
     queryText: string,
-    maxSnippets = 4
+    maxSnippets = 4,
+    contextText?: string
   ): Promise<Array<{ documentTitle: string; content: string; score: number }>> {
     if (!queryText || !queryText.trim()) return [];
 
@@ -96,6 +117,14 @@ export class KnowledgeSubagent implements ISubagent {
     const normalizedQuery = queryText.toLowerCase().replace(/[^a-z0-9àèéìòù\s]/g, ' ');
     const rawTokens = normalizedQuery.split(/\s+/).filter(w => w.length >= 2 && !stopWords.has(w));
     const tokens = Array.from(new Set(rawTokens));
+
+    // Se i token della domanda diretta sono pochi (es. follow-up come "è lordo" o "aggiornala"),
+    // arricchiamo la ricerca con i token del contesto della conversazione
+    if (tokens.length < 2 && contextText) {
+      const ctxNorm = contextText.toLowerCase().replace(/[^a-z0-9àèéìòù\s]/g, ' ');
+      const ctxTokens = ctxNorm.split(/\s+/).filter(w => w.length >= 3 && !stopWords.has(w));
+      tokens.push(...ctxTokens.slice(0, 6));
+    }
 
     if (tokens.length === 0) return [];
 
