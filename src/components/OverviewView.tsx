@@ -29,7 +29,6 @@ import {
 } from '../types';
 import { retrieveRelevantChunks, generateRAGAnswer } from '../services/ragEngine';
 import { AiMessageRenderer } from './AiMessageRenderer';
-import { FrankCopilot } from './FrankCopilot';
 
 interface OverviewViewProps {
   expenses: FixedExpense[];
@@ -100,12 +99,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 items-start w-full pb-12">
+    <div className="space-y-6 w-full pb-12">
       
-      {/* Colonna Sinistra (70%): Cruscotto Dati, Scadenze e Riepilogo */}
-      <div className="w-full lg:w-[70%] space-y-6">
-        
-        {/* Welcome Banner Flat Pastel */}
+      {/* Welcome Banner Flat Pastel */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -460,18 +456,5 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       </div>
 
     </div>
-
-    {/* Colonna Destra (30%): Chat Laterale Frank Copilot ad altezza schermo (100% - altezza header) */}
-    <div className="w-full lg:w-[30%] lg:sticky lg:top-[72px] h-[calc(100vh-5.5rem)] flex flex-col shrink-0">
-      <FrankCopilot
-        settings={settings}
-        chunks={chunks}
-        ecosystem={ecosystem}
-        onNavigateTab={onNavigateTab}
-        onSaveCompaction={onSaveCompaction}
-      />
-    </div>
-
-  </div>
-);
+  );
 };

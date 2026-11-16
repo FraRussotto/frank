@@ -10,6 +10,7 @@ import { SuperAgentView } from './components/SuperAgentView';
 import { DeadlinesView } from './components/DeadlinesView';
 import { FlatSettingsModal } from './components/FlatSettingsModal';
 import { TelegramModal } from './components/TelegramModal';
+import { FrankCopilot } from './components/FrankCopilot';
 import {
   INITIAL_FIXED_EXPENSES,
   INITIAL_SYNCED_EVENTS,
@@ -24,7 +25,8 @@ import {
   DocumentChunk,
   AppSettings,
   AgentWorkerStatus,
-  SuperAgentStatus
+  SuperAgentStatus,
+  EcosystemContext
 } from './types';
 import { chunkText } from './services/ragEngine';
 
@@ -504,8 +506,16 @@ export const App: React.FC = () => {
   const unpaidCount = expenses.filter(e => !e.isPaid).length;
   const pendingRequestsCount = requests.filter(r => r.status === 'pending').length;
 
+  const ecosystem: EcosystemContext = {
+    expenses: showExpenses ? expenses : [],
+    events,
+    requests,
+    documents,
+    todayStr: new Date().toISOString().split('T')[0]
+  };
+
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans selection:bg-sky-100 selection:text-sky-900">
+    <div className="h-screen w-screen bg-[#f8fafc] text-slate-900 flex overflow-hidden font-sans selection:bg-sky-100 selection:text-sky-900">
       
       {/* Toast Notification (Soft Pastel) */}
       {syncToast && (
@@ -515,22 +525,25 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Flat Navbar */}
-      <FlatNavbar
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenTelegram={() => setIsTelegramModalOpen(true)}
-        onSyncAll={handleSyncAll}
-        isSyncing={isSyncing}
-        settings={settings}
-        unpaidExpensesCount={showExpenses ? unpaidCount : 0}
-        pendingRequestsCount={pendingRequestsCount}
-        showExpenses={showExpenses}
-      />
+      {/* 1. Main Content Area (Larghezza rimanente: 70% / flex-1) */}
+      <div className="flex-1 h-screen flex flex-col min-w-0 overflow-hidden">
+        {/* Flat Navbar */}
+        <FlatNavbar
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenTelegram={() => setIsTelegramModalOpen(true)}
+          onSyncAll={handleSyncAll}
+          isSyncing={isSyncing}
+          settings={settings}
+          unpaidExpensesCount={showExpenses ? unpaidCount : 0}
+          pendingRequestsCount={pendingRequestsCount}
+          showExpenses={showExpenses}
+        />
 
-      {/* Main Body with Real Routing */}
-      <main className="flex-1 max-w-[1550px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <Routes>
-          {/* Panoramica */}
+        {/* Content delle pagine con Routing (scroll verticale indipendente) */}
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="max-w-[1450px] mx-auto w-full">
+            <Routes>
+              {/* Panoramica */}
           <Route
             path="/"
             element={
@@ -648,23 +661,36 @@ export const App: React.FC = () => {
           {/* Fallback per qualsiasi altro URL */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </main>
+      </div>
+    </main>
+  </div>
 
-      {/* Settings Modal */}
-      <FlatSettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        settings={settings}
-        onSaveSettings={setSettings}
-        onResetData={handleResetData}
-      />
+  {/* 2. Persistent Lateral Chat: Frank Copilot (Altezza: 100vh / h-full, Larghezza: 30%, Sempre visibile in tutto il sito) */}
+  <aside className="w-[30%] min-w-[340px] max-w-[480px] h-screen border-l border-slate-200/90 bg-white shadow-xs shrink-0 flex flex-col z-20">
+    <FrankCopilot
+      settings={settings}
+      chunks={chunks}
+      ecosystem={ecosystem}
+      onNavigateTab={handleNavigateTab}
+      onSaveCompaction={handleUploadDocument}
+    />
+  </aside>
 
-      {/* Telegram Bot Modal */}
-      <TelegramModal
-        isOpen={isTelegramModalOpen}
-        onClose={() => setIsTelegramModalOpen(false)}
-      />
+  {/* Settings Modal */}
+  <FlatSettingsModal
+    isOpen={isSettingsOpen}
+    onClose={() => setIsSettingsOpen(false)}
+    settings={settings}
+    onSaveSettings={setSettings}
+    onResetData={handleResetData}
+  />
 
-    </div>
-  );
+  {/* Telegram Bot Modal */}
+  <TelegramModal
+    isOpen={isTelegramModalOpen}
+    onClose={() => setIsTelegramModalOpen(false)}
+  />
+
+</div>
+);
 };

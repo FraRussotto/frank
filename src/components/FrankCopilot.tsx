@@ -217,7 +217,7 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
   };
 
   return (
-    <div className="h-full rounded-2xl border border-indigo-200/90 bg-white shadow-xs overflow-hidden flex flex-col transition-all">
+    <div className="h-full w-full bg-white flex flex-col overflow-hidden">
       {/* 1. Header Bar: Identity & Status */}
       <div className="px-4 py-3 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between border-b border-indigo-950 shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
