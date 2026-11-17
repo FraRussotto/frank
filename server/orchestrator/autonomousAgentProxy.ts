@@ -2,6 +2,8 @@ export {
   autonomousAgent,
   getAllAnalysesMap,
   initFrankDb,
-  analyzeThreadAutonomous
+  analyzeThreadAutonomous,
+  toggleAgentTask,
+  toggleAgentThread
 } from '../autonomousAgent';
 

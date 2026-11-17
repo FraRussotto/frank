@@ -420,7 +420,20 @@ export class FrankSuperAgent {
 
     // 1. Identificazione dei domini di competenza da delegare
     const hasClientSources = Array.isArray(clientContext?.sources) && clientContext.sources.length > 0;
+    
+    // Rileva se l'utente chiede cosa rimane da fare / quali sono le attività residue
+    const isTasksRemainingQuery =
+      q.includes('cosa rimane') || q.includes('cosa resta') || q.includes('cosa c\'è da fare') ||
+      q.includes('cosa c e da fare') || q.includes('attività rimaste') || q.includes('task aperti') ||
+      q.includes('rimangono') || q.includes('ancora aperte') || q.includes('ancora aperto');
+
+    // Gestione esecuzione azioni su note/documenti (es. conferma utente per aggiornare "Entrata")
+    const isUpdateNoteIntent =
+      (lastUserMessage.toLowerCase().includes('aggiorna') || lastUserMessage.toLowerCase().includes('modifica') || lastUserMessage.toLowerCase() === 'aggiornala' || lastUserMessage.toLowerCase().includes('confermo')) &&
+      (recentContextText.toLowerCase().includes('entrata') || recentContextText.toLowerCase().includes('2.700') || recentContextText.toLowerCase().includes('lord') || recentContextText.toLowerCase().includes('nett'));
+
     const isDocRelated =
+      isUpdateNoteIntent ||
       hasClientSources ||
       q.includes('iva') || q.includes('p.iva') || q.includes('partita') ||
       q.includes('codice fiscale') || q.includes('cf') ||
@@ -431,6 +444,7 @@ export class FrankSuperAgent {
       q.includes('entrata') || q.includes('lordo') || q.includes('netto') || q.includes('stipendio') || q.includes('reddito');
 
     const isEmailRelated =
+      isTasksRemainingQuery ||
       q.includes('email') || q.includes('thread') || q.includes('posta') ||
       q.includes('messagg') || q.includes('task') || q.includes('attivit') ||
       q.includes('da fare') || q.includes('priorit') || q.includes('citterio') ||
@@ -438,38 +452,41 @@ export class FrankSuperAgent {
       q.includes('electrolux') || q.includes('scritto') || q.includes('urgent');
 
     const isCalendarRelated =
-      q.includes('calendar') || q.includes('riunion') || q.includes('meeting') ||
-      q.includes('agenda') || q.includes('appuntament') || q.includes('call') ||
-      q.includes('orari') || q.includes('quando') || q.includes('settiman') ||
-      q.includes('oggi') || q.includes('domani');
+      !isUpdateNoteIntent && (
+        q.includes('calendar') || q.includes('riunion') || q.includes('meeting') ||
+        q.includes('agenda') || q.includes('appuntament') || q.includes('call') ||
+        q.includes('orari') || q.includes('quando') || q.includes('settiman') ||
+        q.includes('oggi') || q.includes('domani')
+      );
 
     const isFinanceRelated =
-      q.includes('spes') || q.includes('pagar') || q.includes('bollett') ||
-      q.includes('affitt') || q.includes('soldi') || q.includes('saldo') ||
-      q.includes('bonifico') || q.includes('cost') || q.includes('budget') ||
-      q.includes('entrata') || q.includes('stipendio') || q.includes('reddito') ||
-      q.includes('playstation') || q.includes('palestra') || q.includes('assicuraz');
+      !isUpdateNoteIntent && (
+        q.includes('spes') || q.includes('pagar') || q.includes('bollett') ||
+        q.includes('affitt') || q.includes('soldi') || q.includes('saldo') ||
+        q.includes('bonifico') || q.includes('cost') || q.includes('budget') ||
+        q.includes('entrata') || q.includes('stipendio') || q.includes('reddito') ||
+        q.includes('playstation') || q.includes('palestra') || q.includes('assicuraz')
+      );
 
     const isDeadlineRelated =
-      q.includes('scadenz') || q.includes('da fare') || q.includes('entro') ||
-      q.includes('adempiment') || q.includes('termine') || q.includes('priorit') ||
-      q.includes('prossim') || q.includes('urgente') || q.includes('oggi') || q.includes('domani');
+      isTasksRemainingQuery ||
+      (!isUpdateNoteIntent && (
+        q.includes('scadenz') || q.includes('da fare') || q.includes('entro') ||
+        q.includes('adempiment') || q.includes('termine') || q.includes('priorit') ||
+        q.includes('prossim') || q.includes('urgente') || q.includes('oggi') || q.includes('domani')
+      ));
 
     const isGeneralStatus =
+      !isUpdateNoteIntent && !isTasksRemainingQuery &&
       !isDocRelated && !isEmailRelated && !isCalendarRelated && !isFinanceRelated && !isDeadlineRelated;
 
     const delegations: Array<{ id: string; name: string; icon: string; detail: string }> = [];
     const contextBlocks: string[] = [];
 
-    // Gestione esecuzione azioni su note/documenti (es. conferma utente per aggiornare "Entrata")
-    const isUpdateNoteIntent =
-      (lastUserMessage.toLowerCase().includes('aggiorna') || lastUserMessage.toLowerCase().includes('modifica') || lastUserMessage.toLowerCase() === 'aggiornala') &&
-      (recentContextText.toLowerCase().includes('entrata') || recentContextText.toLowerCase().includes('2.700') || recentContextText.toLowerCase().includes('lord'));
-
     if (isUpdateNoteIntent) {
       const updateRes = KnowledgeSubagent.updateDocument('Entrata', '2.700 € lordi mensili');
       if (updateRes.success) {
-        contextBlocks.push(`=== ⚡ AZIONE ESEGUITA DAL SUPER AGENTE ===\nHo aggiornato con successo nel database RAG la nota "${updateRes.title}" con il testo "2.700 € lordi mensili". Conferma all'utente in modo cordiale che l'entrata è ora salvata ufficialmente come lorda.`);
+        contextBlocks.push(`=== ⚡ AZIONE ESEGUITA DAL SUPER AGENTE ===\nHo aggiornato con successo nel database RAG la nota "${updateRes.title}" con il testo "2.700 € lordi mensili". Conferma all'utente in modo chiaro e cordiale che l'entrata è ora salvata ufficialmente come lorda.`);
         delegations.push({
           id: 'knowledge',
           name: 'Subagente Knowledge & RAG',
@@ -526,22 +543,41 @@ export class FrankSuperAgent {
     // B. Delega al Subagente Email & Thread
     if (isEmailRelated || isGeneralStatus) {
       const emailAgent = this.subagents.get('email');
+      let tasks: any[] = [];
       if (emailAgent) {
         const res = await emailAgent.query('active');
-        const tasks = res?.tasks || [];
-        delegations.push({
-          id: 'email',
-          name: 'Subagente Email & Thread',
-          icon: 'MailCheck',
-          detail: `${tasks.length} task attivi analizzati dai thread recenti`
-        });
-        if (tasks.length > 0) {
-          const tasksText = tasks
-            .slice(0, 6)
-            .map((t: any) => `- [Urgenza ${t.urgency.toUpperCase()}] ${t.summary} (Thread: "${t.subject}")`)
-            .join('\n');
-          contextBlocks.push(`=== ✉️ DATI DAL SUBAGENTE EMAIL & THREAD ===\n${tasksText}`);
-        }
+        tasks = res?.tasks || [];
+      }
+
+      // Se il client passa le sue requests live (es. da FrankCopilot nella Web UI),
+      // usale per sincronizzare lo stato effettivo con le checkbox a schermo
+      if (Array.isArray(clientContext?.ecosystem?.requests) && clientContext.ecosystem.requests.length > 0) {
+        const clientPending = clientContext.ecosystem.requests.filter((r: any) => r.status === 'pending');
+        // Se ci sono task nel frontend, mappiamo quelli
+        tasks = clientPending.map((r: any) => ({
+          threadId: r.thread_id,
+          subject: r.email_subject || 'Attività diretta',
+          summary: r.request_text,
+          urgency: r.urgency || 'medium',
+          reason: ''
+        }));
+      }
+
+      delegations.push({
+        id: 'email',
+        name: 'Subagente Email & Thread',
+        icon: 'MailCheck',
+        detail: `${tasks.length} task attivi analizzati dai thread recenti`
+      });
+
+      if (tasks.length > 0) {
+        const tasksText = tasks
+          .slice(0, 10)
+          .map((t: any) => `- [Urgenza ${(t.urgency || 'media').toUpperCase()}] ${t.summary} (Thread: "${t.subject}")`)
+          .join('\n');
+        contextBlocks.push(`=== ✉️ DATI DAL SUBAGENTE EMAIL & THREAD (ATTIVITÀ EFFETTIVAMENTE APERTE) ===\n${tasksText}`);
+      } else {
+        contextBlocks.push(`=== ✉️ DATI DAL SUBAGENTE EMAIL & THREAD ===\nNessuna attività pendente dalle email: tutti i task risultano completati.`);
       }
     }
 
@@ -627,6 +663,14 @@ COME OPERI:
    Forniscilo SUBITO in prima riga evidenziato chiaramente in **grassetto**, con fonte tra parentesi. NON incollare mai l'intero documento o il suo indice.
 4. Se è una domanda di follow-up nella conversazione, mantieni naturale continuità col discorso.
 5. Usa formattazione Markdown elegante ed elenchi puntati puliti quando elenchi più elementi.
+6. VERITÀ DEI DATI E GESTIONE ATTIVITÀ / COSE DA FARE:
+   - I dati riportati sotto in "DATI ESTRATTI DAI SUBAGENTI DELEGATI" costituiscono l'UNICA fonte di verità in tempo reale sul sistema.
+   - Quando Francesco chiede cosa rimane, cosa c'è da fare o quali sono i task aperti:
+     ELENCA SUBITO ED ESCLUSIVAMENTE i compiti ancora aperti riportati nel blocco "DATI DAL SUBAGENTE EMAIL & THREAD (ATTIVITÀ EFFETTIVAMENTE APERTE)" o dallo scadenziario.
+   - NON dire MAI che "non posso confermare con certezza cosa rimane nell'elenco corrente".
+   - NON dire MAI che "non risultano attività residue verificabili dai dati disponibili qui" se nei dati sotto sono elencati task attivi.
+   - NON chiedere MAI a Francesco di incollare via chat l'elenco dei task: hai già accesso diretto al database e alle email.
+   - I task che sono già stati contrassegnati come risolti/fatti NON vanno riproposti come aperti.
 
 DATI ESTRATTI DAI SUBAGENTI DELEGATI:
 ${contextBlocks.join('\n\n') || 'Nessun dato specifico estratto dai subagenti.'}`;

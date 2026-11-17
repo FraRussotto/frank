@@ -35,10 +35,13 @@ export async function generateDailyBriefing(): Promise<DailyBriefingPayload> {
   const analyses = getAllAnalysesMap();
   const hotThreads: Array<{ subject: string; summary: string }> = [];
   analyses.forEach((a) => {
-    if (a.myActionRequired || a.status === 'action_required') {
+    const activeTasks = Array.isArray(a.activeTasks) ? a.activeTasks : [];
+    // Considera prioritari solo i thread che hanno DAVVERO attività attive pendenti
+    if (activeTasks.length > 0 && (a.myActionRequired || a.status === 'action_required')) {
+      const remainingTasksSummary = activeTasks.map(t => t.summary).join('; ');
       hotThreads.push({
         subject: a.subject || 'Thread senza titolo',
-        summary: a.summary || ''
+        summary: remainingTasksSummary || a.summary || ''
       });
     }
   });

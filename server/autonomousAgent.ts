@@ -135,6 +135,132 @@ export function saveAnalysis(analysis: any): void {
   }
 }
 
+/**
+ * Smarca o riapre una singola attività estratta dall'agente per un thread.
+ * Mantiene perfettamente allineato thread_analyses con le azioni dell'utente.
+ */
+export function toggleAgentTask(
+  identifier: string | number,
+  newStatus: 'done' | 'completed' | 'pending',
+  explicitThreadId?: string
+): { success: boolean; threadId?: string } {
+  let threadId = explicitThreadId;
+  let taskIndex = -1;
+
+  const idStr = String(identifier);
+  if (idStr.startsWith('act-') || idStr.startsWith('res-')) {
+    const parts = idStr.split('-');
+    if (parts.length >= 3) {
+      taskIndex = parseInt(parts[parts.length - 1], 10);
+      threadId = threadId || parts.slice(1, parts.length - 1).join('-');
+    }
+  }
+
+  if (!threadId) {
+    return { success: false };
+  }
+
+  const map = getAllAnalysesMap();
+  const analysis = map.get(threadId);
+  if (!analysis) {
+    return { success: false, threadId };
+  }
+
+  let activeTasks = Array.isArray(analysis.activeTasks) ? [...analysis.activeTasks] : [];
+  let resolvedTasks = Array.isArray(analysis.resolvedTasks) ? [...analysis.resolvedTasks] : [];
+
+  const isDone = newStatus === 'done' || newStatus === 'completed';
+
+  if (isDone) {
+    let movedTask: any = null;
+    if (taskIndex >= 0 && taskIndex < activeTasks.length) {
+      movedTask = activeTasks.splice(taskIndex, 1)[0];
+    } else {
+      movedTask = activeTasks.shift();
+    }
+
+    if (movedTask) {
+      resolvedTasks.push({
+        summary: movedTask.summary,
+        resolvedBy: 'Francesco Russotto',
+        resolvedNote: 'Completato manualmente da Francesco'
+      });
+    }
+  } else {
+    let movedTask: any = null;
+    if (taskIndex >= 0 && taskIndex < resolvedTasks.length) {
+      movedTask = resolvedTasks.splice(taskIndex, 1)[0];
+    } else {
+      movedTask = resolvedTasks.pop();
+    }
+
+    if (movedTask) {
+      activeTasks.push({
+        summary: movedTask.summary,
+        urgency: 'medium',
+        reason: 'Riaperto manualmente da Francesco'
+      });
+    }
+  }
+
+  analysis.activeTasks = activeTasks;
+  analysis.resolvedTasks = resolvedTasks;
+  analysis.myActionRequired = activeTasks.length > 0;
+  analysis.status = activeTasks.length > 0 ? 'action_required' : 'resolved';
+  analysis.statusLabel = activeTasks.length > 0 ? 'Richiede Azione' : 'Completato';
+
+  saveAnalysis(analysis);
+  return { success: true, threadId };
+}
+
+/**
+ * Smarca o riapre tutte le attività di un intero thread.
+ */
+export function toggleAgentThread(
+  threadId: string,
+  action: 'done' | 'reopen'
+): { success: boolean } {
+  const map = getAllAnalysesMap();
+  const analysis = map.get(threadId);
+  if (!analysis) {
+    return { success: false };
+  }
+
+  let activeTasks = Array.isArray(analysis.activeTasks) ? [...analysis.activeTasks] : [];
+  let resolvedTasks = Array.isArray(analysis.resolvedTasks) ? [...analysis.resolvedTasks] : [];
+
+  if (action === 'done') {
+    for (const t of activeTasks) {
+      resolvedTasks.push({
+        summary: t.summary,
+        resolvedBy: 'Francesco Russotto',
+        resolvedNote: 'Completato manualmente da Francesco'
+      });
+    }
+    analysis.activeTasks = [];
+    analysis.resolvedTasks = resolvedTasks;
+    analysis.myActionRequired = false;
+    analysis.status = 'resolved';
+    analysis.statusLabel = 'Completato';
+  } else {
+    for (const t of resolvedTasks) {
+      activeTasks.push({
+        summary: t.summary,
+        urgency: 'medium',
+        reason: 'Riaperto manualmente da Francesco'
+      });
+    }
+    analysis.activeTasks = activeTasks;
+    analysis.resolvedTasks = [];
+    analysis.myActionRequired = true;
+    analysis.status = 'action_required';
+    analysis.statusLabel = 'Richiede Azione';
+  }
+
+  saveAnalysis(analysis);
+  return { success: true };
+}
+
 // Analizzatore euristico rapido per email automatiche o notifiche bot
 function tryFastHeuristicAnalysis(thread: { subject: string; emails: any[] }): any | null {
   const s = (thread.subject || '').toLowerCase();

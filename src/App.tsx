@@ -300,6 +300,15 @@ export const App: React.FC = () => {
 
   // Handlers Richieste Email AI & Thread
   const handleToggleRequest = async (requestId: any, newStatus: 'done' | 'pending') => {
+    // Individua threadId corrispondente
+    let targetThreadId: string | undefined;
+    for (const t of threads) {
+      if (t.requests.some(r => String(r.id) === String(requestId))) {
+        targetThreadId = t.thread_id;
+        break;
+      }
+    }
+
     // Aggiorna threads in locale
     setThreads(prev => prev.map(t => ({
       ...t,
@@ -312,17 +321,15 @@ export const App: React.FC = () => {
       status: newStatus === 'done' ? 'completed' : 'pending'
     } : r));
 
-    // Notifica backend SQLite se id numerico
-    if (typeof requestId === 'number' || !isNaN(Number(requestId))) {
-      try {
-        await fetch('/api/toggle-request', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ requestId: Number(requestId), newStatus })
-        });
-      } catch (err) {
-        console.error('Errore toggle request:', err);
-      }
+    // Notifica SEMPRE il backend SQLite (sia per ID numerici che per ID task agente act-... / res-...)
+    try {
+      await fetch('/api/toggle-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, newStatus, threadId: targetThreadId })
+      });
+    } catch (err) {
+      console.error('Errore toggle request:', err);
     }
   };
 

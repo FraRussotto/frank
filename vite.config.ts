@@ -4,7 +4,7 @@ import { exec } from 'node:child_process';
 import path from 'node:path';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, unlinkSync, createReadStream } from 'node:fs';
 import zlib from 'node:zlib';
-import { autonomousAgent, getAllAnalysesMap, analyzeThreadAutonomous } from './server/autonomousAgent';
+import { autonomousAgent, getAllAnalysesMap, analyzeThreadAutonomous, toggleAgentTask, toggleAgentThread } from './server/autonomousAgent';
 import { superAgent } from './server/orchestrator/superAgent';
 import { FinanceSubagent } from './server/orchestrator/subagents/financeSubagent';
 import { KnowledgeSubagent } from './server/orchestrator/subagents/knowledgeSubagent';
@@ -391,11 +391,24 @@ function emailAgentPlugin() {
           req.on('end', async () => {
             let db: any = null;
             try {
-              const { requestId, newStatus } = JSON.parse(body);
-              const { DatabaseSync } = await import('node:sqlite');
-              db = new DatabaseSync(DB_PATH);
-              const statusVal = newStatus === 'done' ? 'done' : 'pending';
-              db.prepare("UPDATE requests SET status = ?, updated_at = datetime('now') WHERE id = ?").run(statusVal, requestId);
+              const { requestId, newStatus, threadId } = JSON.parse(body || '{}');
+              const isDone = newStatus === 'done' || newStatus === 'completed';
+              const statusVal = isDone ? 'done' : 'pending';
+
+              // 1. Aggiorna l'analisi dell'agente autonomo in frank_agent.sqlite (permette persistenza dei task act- e res-)
+              try {
+                toggleAgentTask(requestId, isDone ? 'completed' : 'pending', threadId);
+              } catch (agentErr) {
+                console.warn('Errore toggleAgentTask:', agentErr);
+              }
+
+              // 2. Se requestId è numerico o convertibile, aggiorna requests in emails.sqlite (enum Laravel: completed / pending)
+              if (!isNaN(Number(requestId))) {
+                const { DatabaseSync } = await import('node:sqlite');
+                db = new DatabaseSync(DB_PATH);
+                db.prepare("UPDATE requests SET status = ?, updated_at = datetime('now') WHERE id = ?").run(isDone ? 'completed' : 'pending', Number(requestId));
+              }
+
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify({ success: true, status: statusVal }));
             } catch (err: any) {
@@ -417,15 +430,28 @@ function emailAgentPlugin() {
           req.on('end', async () => {
             let db: any = null;
             try {
-              const { threadId, action } = JSON.parse(body);
-              const { DatabaseSync } = await import('node:sqlite');
-              db = new DatabaseSync(DB_PATH);
+              const { threadId, action } = JSON.parse(body || '{}');
               const newStatus = action === 'done' ? 'done' : 'pending';
-              db.prepare(`
-                UPDATE requests 
-                SET status = ?, updated_at = datetime('now')
-                WHERE email_id IN (SELECT id FROM emails WHERE thread_id = ?)
-              `).run(newStatus, threadId);
+
+              // 1. Aggiorna l'analisi del thread in frank_agent.sqlite
+              try {
+                toggleAgentThread(threadId, action);
+              } catch (agentErr) {
+                console.warn('Errore toggleAgentThread:', agentErr);
+              }
+
+              // 2. Aggiorna requests collegate in emails.sqlite
+              try {
+                const { DatabaseSync } = await import('node:sqlite');
+                db = new DatabaseSync(DB_PATH);
+                db.prepare(`
+                  UPDATE requests 
+                  SET status = ?, updated_at = datetime('now')
+                  WHERE email_id IN (SELECT id FROM emails WHERE thread_id = ?)
+                `).run(newStatus, threadId);
+              } catch (sqlErr) {
+                console.warn('Errore aggiornamento emails.sqlite in toggle-thread:', sqlErr);
+              }
 
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify({ success: true, newStatus }));
