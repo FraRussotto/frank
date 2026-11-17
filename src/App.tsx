@@ -41,7 +41,7 @@ const STORAGE_KEYS = {
 
 const DEFAULT_SETTINGS: AppSettings = {
   geminiApiKey: '',
-  selectedModel: 'smart-local',
+  selectedModel: 'gemini-2.5-pro',
   workEmail: 'f.russotto@arteficegroup.com',
   personalEmail: 'francesco.russo@gmail.com',
   lastSyncTime: 'Mai sincronizzato'
@@ -91,6 +91,37 @@ export const App: React.FC = () => {
       return DEFAULT_SETTINGS;
     }
   });
+
+  // Caricamento configurazione AI dal server
+  useEffect(() => {
+    fetch('/api/ai/config')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.geminiModel) {
+          setSettings(prev => ({
+            ...prev,
+            selectedModel: data.geminiModel as any
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveSettings = async (newSettings: AppSettings) => {
+    setSettings(newSettings);
+    try {
+      await fetch('/api/ai/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          geminiApiKey: newSettings.geminiApiKey,
+          geminiModel: newSettings.selectedModel
+        })
+      });
+    } catch (err) {
+      console.warn('Errore sincronizzazione config AI col server:', err);
+    }
+  };
 
   // Expenses
   const [expenses, setExpenses] = useState<FixedExpense[]>(() => {
@@ -688,7 +719,7 @@ export const App: React.FC = () => {
     isOpen={isSettingsOpen}
     onClose={() => setIsSettingsOpen(false)}
     settings={settings}
-    onSaveSettings={setSettings}
+    onSaveSettings={handleSaveSettings}
     onResetData={handleResetData}
   />
 

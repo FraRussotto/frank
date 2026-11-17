@@ -534,7 +534,11 @@ export const RagDocsView: React.FC<RagDocsViewProps> = ({
               <span className="font-semibold text-slate-800">Assistente RAG</span>
             </div>
             <span className="text-[10px] text-slate-400 font-mono">
-              {settings.selectedModel === 'gemini-2.5-flash' ? 'Gemini 2.5 Flash' : 'Motore Flat'}
+              {settings.selectedModel === 'gemini-2.5-pro' 
+                ? 'Google Gemini 2.5 Pro' 
+                : (settings.selectedModel === 'gemini-2.5-flash-thinking' 
+                    ? 'Gemini Thinking' 
+                    : (settings.selectedModel === 'gemini-2.5-flash' ? 'Gemini Flash' : 'Motore Flat'))}
             </span>
           </div>
 

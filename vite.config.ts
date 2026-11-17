@@ -15,6 +15,7 @@ import { telegramBot } from './server/telegram/telegramBot';
 import { initTelegramScheduler } from './server/telegram/scheduler';
 import { saveTelegramConfig, loadTelegramConfig } from './server/telegram/config';
 import { pollGoogleData, initGoogleSyncScheduler, ensureEmailDatabaseSchema } from './server/services/googleSync';
+import { saveAiConfig, loadAiConfig, getAiCredentials, callAiModelWithMeta } from './server/aiClient';
 
 const LARAVEL_DIR = process.env.LARAVEL_DIR || (
   existsSync('/Users/fra_russo/email-ai-agent')
@@ -669,6 +670,43 @@ function emailAgentPlugin() {
           return;
         }
 
+        // GET /api/ai/config (Stato attuale provider AI e modello selezionato)
+        if (req.url === '/api/ai/config' && req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
+          const creds = getAiCredentials();
+          const config = loadAiConfig();
+          res.end(JSON.stringify({
+            provider: creds.provider,
+            model: creds.model,
+            hasGeminiKey: Boolean(creds.provider === 'gemini'),
+            geminiModel: config.geminiModel || 'gemini-2.5-pro'
+          }));
+          return;
+        }
+
+        // POST /api/ai/config (Salva credenziali Gemini e modello preferito)
+        if (req.url === '/api/ai/config' && req.method === 'POST') {
+          let bodyStr = '';
+          req.on('data', (chunk: any) => { bodyStr += chunk; });
+          req.on('end', async () => {
+            res.setHeader('Content-Type', 'application/json');
+            try {
+              const body = JSON.parse(bodyStr || '{}');
+              const saved = saveAiConfig({
+                provider: 'gemini',
+                geminiApiKey: body.geminiApiKey || undefined,
+                geminiModel: body.geminiModel || 'gemini-2.5-pro'
+              });
+              const creds = getAiCredentials();
+              res.end(JSON.stringify({ success: true, config: saved, activeCreds: creds }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+
         // POST /api/telegram/config (Salva credenziali o orario briefing e riavvia bot)
         if (req.url === '/api/telegram/config' && req.method === 'POST') {
           let bodyStr = '';
@@ -1122,32 +1160,17 @@ DATI ECOSISTEMA:
 - Eventi agenda: ${ecosystem?.events?.length || 0}
 - Spese fisse: ${ecosystem?.expenses?.length || 0}`;
 
-              const aiRes = await fetch('https://api.perplexity.ai/chat/completions', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${apiKey}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  model: 'sonar',
-                  messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: userMessage }
-                  ],
-                  temperature: 0.1
-                })
-              });
+              const aiResult = await callAiModelWithMeta([
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userMessage }
+              ], { temperature: 0.1 });
 
-              if (aiRes.ok) {
-                const aiData = await aiRes.json();
-                const text = aiData.choices?.[0]?.message?.content;
-                if (text) {
-                  res.end(JSON.stringify({ success: true, text: text.trim(), model: 'Frank AI Engine (Sonar)' }));
-                  return;
-                }
+              if (aiResult.text) {
+                res.end(JSON.stringify({ success: true, text: aiResult.text.trim(), model: `Frank AI Engine [${aiResult.modelUsed}]` }));
+                return;
               }
 
-              throw new Error(`AI API status: ${aiRes.status}`);
+              throw new Error('Nessun testo generato dal motore AI');
             } catch (err: any) {
               res.statusCode = 500;
               res.end(JSON.stringify({ error: err.message }));

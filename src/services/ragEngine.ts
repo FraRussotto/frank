@@ -130,10 +130,12 @@ export async function generateRAGAnswer(
     console.warn('Fallback sul motore locale Frank:', err);
   }
 
-  // 2. Chiamata a Gemini 2.5 Flash se configurata manualmente dall'utente
-  if (settings.geminiApiKey && settings.selectedModel === 'gemini-2.5-flash') {
+  // 2. Chiamata a Google Gemini se configurata manualmente dall'utente
+  const isGeminiModel = typeof settings.selectedModel === 'string' && settings.selectedModel.startsWith('gemini-');
+  if (settings.geminiApiKey && isGeminiModel) {
     try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${settings.geminiApiKey}`;
+      const modelName = settings.selectedModel || 'gemini-2.5-pro';
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${settings.geminiApiKey}`;
       
       const upcomingEvents = events.filter(e => e.date >= todayStr);
       const pendingReqs = requests.filter(r => r.status === 'pending');
@@ -200,7 +202,10 @@ ISTRUZIONI PER LA RISPOSTA:
         const data = await res.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (text) {
-          return { text, model: 'Gemini 2.5 Flash' };
+          const displayModelName = modelName === 'gemini-2.5-pro' 
+            ? 'Google Gemini 2.5 Pro' 
+            : (modelName === 'gemini-2.5-flash-thinking' ? 'Gemini 2.5 Flash Thinking' : 'Gemini 2.5 Flash');
+          return { text, model: displayModelName };
         }
       }
     } catch (e) {

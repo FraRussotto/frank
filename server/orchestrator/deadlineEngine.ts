@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { FRANK_DB_PATH, EMAIL_DB_PATH, LARAVEL_ENV_PATH } from '../paths';
+import { callAiModel } from '../aiClient';
 
 export type DeadlineCategory = 'task_operativo' | 'documento' | 'preparazione_call' | 'pagamento' | 'manuale' | 'casa_utenze' | 'salute' | 'burocrazia';
 export type DeadlinePriority = 'alta' | 'media' | 'bassa';
@@ -549,30 +550,10 @@ TESTO DEL DOCUMENTO (primi 3500 caratteri):
 ${text.slice(0, 3500)}`;
 
     try {
-      const response = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'sonar',
-          messages: [
-            { role: 'system', content: 'Rispondi esclusivamente con JSON grezzo. Nessun markup markdown o commenti aggiuntivi.' },
-            { role: 'user', content: promptText }
-          ],
-          temperature: 0.1,
-          max_tokens: 600
-        })
-      });
-
-      if (!response.ok) {
-        console.warn('Perplexity deadline extraction HTTP error:', response.status);
-        return [];
-      }
-
-      const resData: any = await response.json();
-      const rawText = resData.choices?.[0]?.message?.content || '[]';
+      const rawText = await callAiModel([
+        { role: 'system', content: 'Rispondi esclusivamente con JSON grezzo. Nessun markup markdown o commenti aggiuntivi.' },
+        { role: 'user', content: promptText }
+      ], { jsonMode: true, temperature: 0.1 });
       const cleanJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
 
       const extractedItems = JSON.parse(cleanJson);

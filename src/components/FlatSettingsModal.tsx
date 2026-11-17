@@ -80,23 +80,44 @@ export const FlatSettingsModal: React.FC<FlatSettingsModalProps> = ({
 
           {/* AI Engine */}
           <div className="space-y-3 pt-3 border-t border-slate-100">
-            <div className="font-semibold text-slate-700 uppercase tracking-wider text-[11px] flex items-center space-x-1.5">
-              <Cpu className="w-3.5 h-3.5 text-sky-600" />
-              <span>Motore AI & RAG</span>
+            <div className="flex items-center justify-between">
+              <div className="font-semibold text-slate-700 uppercase tracking-wider text-[11px] flex items-center space-x-1.5">
+                <Cpu className="w-3.5 h-3.5 text-sky-600" />
+                <span>Motore AI Ecosistema Frank</span>
+              </div>
+              <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">
+                Google Gemini Native
+              </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, selectedModel: 'smart-local' })}
-                className={`p-2.5 rounded-lg border text-left transition-all ${
-                  formData.selectedModel === 'smart-local'
-                    ? 'border-sky-300 bg-sky-50/80 text-sky-900 font-medium'
-                    : 'border-slate-200 bg-slate-50 text-slate-600'
+                onClick={() => setFormData({ ...formData, selectedModel: 'gemini-2.5-pro' })}
+                className={`p-2.5 rounded-lg border text-left transition-all relative ${
+                  formData.selectedModel === 'gemini-2.5-pro'
+                    ? 'border-indigo-400 bg-indigo-50/80 text-indigo-950 font-medium shadow-sm'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
                 }`}
               >
-                <div className="font-semibold">Motore Flat Locale</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Zero API key, offline</div>
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-xs text-indigo-900">Gemini 2.5 Pro</div>
+                  <span className="text-[9px] bg-indigo-600 text-white px-1.5 py-0.2 rounded font-semibold uppercase tracking-wider">Top</span>
+                </div>
+                <div className="text-[10px] text-slate-500 mt-0.5">Frontier, massima intelligenza e precisione</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, selectedModel: 'gemini-2.5-flash-thinking' })}
+                className={`p-2.5 rounded-lg border text-left transition-all ${
+                  formData.selectedModel === 'gemini-2.5-flash-thinking'
+                    ? 'border-purple-400 bg-purple-50/80 text-purple-950 font-medium shadow-sm'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
+                }`}
+              >
+                <div className="font-semibold text-xs text-purple-900">Gemini 2.5 Flash Thinking</div>
+                <div className="text-[10px] text-slate-500 mt-0.5">Extended reasoning logico profondo</div>
               </button>
 
               <button
@@ -104,28 +125,55 @@ export const FlatSettingsModal: React.FC<FlatSettingsModalProps> = ({
                 onClick={() => setFormData({ ...formData, selectedModel: 'gemini-2.5-flash' })}
                 className={`p-2.5 rounded-lg border text-left transition-all ${
                   formData.selectedModel === 'gemini-2.5-flash'
-                    ? 'border-sky-300 bg-sky-50/80 text-sky-900 font-medium'
-                    : 'border-slate-200 bg-slate-50 text-slate-600'
+                    ? 'border-sky-300 bg-sky-50/80 text-sky-900 font-medium shadow-sm'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
                 }`}
               >
-                <div className="font-semibold">Gemini 2.5 Flash</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Google Cloud API</div>
+                <div className="font-semibold text-xs">Gemini 2.5 Flash</div>
+                <div className="text-[10px] text-slate-500 mt-0.5">Ultra-veloce e scattante</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, selectedModel: 'smart-local' })}
+                className={`p-2.5 rounded-lg border text-left transition-all ${
+                  formData.selectedModel === 'smart-local'
+                    ? 'border-slate-400 bg-slate-100 text-slate-900 font-medium'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'
+                }`}
+              >
+                <div className="font-semibold text-xs">Motore Flat Locale</div>
+                <div className="text-[10px] text-slate-500 mt-0.5">Zero API key, regole statiche offline</div>
               </button>
             </div>
 
-            {formData.selectedModel === 'gemini-2.5-flash' && (
-              <div>
-                <label className="block text-slate-600 mb-1 flex items-center space-x-1">
-                  <Key className="w-3 h-3 text-amber-500" />
-                  <span>Chiave API Gemini (opzionale)</span>
-                </label>
+            {formData.selectedModel !== 'smart-local' && (
+              <div className="p-3 bg-indigo-50/40 border border-indigo-100 rounded-lg space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-slate-700 font-medium text-xs flex items-center space-x-1.5">
+                    <Key className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Google Gemini API Key</span>
+                  </label>
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[10px] text-indigo-600 hover:underline flex items-center space-x-0.5"
+                  >
+                    <span>Ottieni chiave da Google AI Studio</span>
+                    <span>↗</span>
+                  </a>
+                </div>
                 <input
                   type="password"
-                  placeholder="AIzaSy..."
+                  placeholder="Incolla qui la tua chiave (es. AIzaSy...)"
                   value={formData.geminiApiKey}
                   onChange={(e) => setFormData({ ...formData, geminiApiKey: e.target.value })}
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-mono focus:outline-none focus:border-sky-500 focus:bg-white"
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 font-mono text-xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                 />
+                <p className="text-[10px] text-slate-500 leading-tight">
+                  La chiave abilita Google Gemini su tutto l'ecosistema: Super Agente, bot Telegram, scansione email e documenti. Se lasciata vuota, Frank usa il fallback integrato.
+                </p>
               </div>
             )}
           </div>

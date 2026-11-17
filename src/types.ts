@@ -75,7 +75,7 @@ export interface ChatMessage {
 
 export interface AppSettings {
   geminiApiKey: string;
-  selectedModel: 'smart-local' | 'gemini-2.5-flash';
+  selectedModel: 'gemini-2.5-pro' | 'gemini-2.5-flash-thinking' | 'gemini-2.5-flash' | 'smart-local';
   workEmail: string;
   personalEmail: string;
   lastSyncTime: string;

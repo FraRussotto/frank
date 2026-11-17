@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { existsSync, readFileSync } from 'node:fs';
 import { deadlineEngine } from './deadlineEngine';
 import { getAllAnalysesMap } from './autonomousAgentProxy';
+import { callAiModel } from '../aiClient';
 
 import { EMAIL_DB_PATH, LARAVEL_ENV_PATH } from '../paths';
 
@@ -50,7 +51,7 @@ export async function generateDailyBriefing(): Promise<DailyBriefingPayload> {
   let workSummary = 'Nessun fronte critico di lavoro al momento.';
   const apiKey = getAiApiKey();
 
-  if (hotThreads.length > 0 && apiKey) {
+  if (hotThreads.length > 0) {
     const prompt = `Sei Frank, il Super Agente di Francesco Russotto.
 Oggi è ${dayOfWeek} ${formattedDate}.
 I thread lavorativi aperti con attività a suo carico riguardano:
@@ -62,30 +63,16 @@ Deve sembrare un messaggio naturale del tipo:
 Sii diretto, esecutivo e fluido.`;
 
     try {
-      const res = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'sonar',
-          messages: [
-            { role: 'system', content: 'Rispondi in modo conciso, naturale e discorsivo, senza liste puntate o preamboli.' },
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.2,
-          max_tokens: 250
-        })
-      });
+      const content = await callAiModel([
+        { role: 'system', content: 'Rispondi in modo conciso, naturale e discorsivo, senza liste puntate o preamboli.' },
+        { role: 'user', content: prompt }
+      ], { temperature: 0.2 });
 
-      if (res.ok) {
-        const data: any = await res.json();
-        const content = data.choices?.[0]?.message?.content?.trim();
-        if (content) workSummary = content;
+      if (content && content.trim()) {
+        workSummary = content.trim();
       }
     } catch (err) {
-      console.warn('Errore generazione workSummary Sonar:', err);
+      console.warn('Errore generazione workSummary con AI:', err);
       // Fallback
       workSummary = `Oggi i fronti aperti principali riguardano: ${hotThreads.slice(0, 3).map(t => t.subject).join(', ')}.`;
     }

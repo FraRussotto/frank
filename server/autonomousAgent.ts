@@ -4,6 +4,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 
 import { FRANK_DB_PATH, EMAIL_DB_PATH, LARAVEL_ENV_PATH } from './paths';
+import { callAiModelWithMeta } from './aiClient';
 
 const FRANK_DB_DIR = path.dirname(FRANK_DB_PATH);
 const BASELINE_DATE = '2026-11-01 00:00:00';
@@ -469,30 +470,21 @@ Rispondi RIGOROSAMENTE con JSON valido in questa struttura:
   "draftReply": { "to": "email o nome", "subject": "oggetto risposta", "body": "testo risposta" }
 }`;
 
-  const apiKey = getAiApiKey();
-  const aiRes = await fetch('https://api.perplexity.ai/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'sonar',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Ecco il thread completo da analizzare:\n${conversation.slice(0, 14000)}` }
-      ],
-      temperature: 0.1
-    })
-  });
+  let rawContent = '{}';
+  let modelUsed = 'Google Gemini 2.5 Pro';
 
-  if (!aiRes.ok) {
-    const errText = await aiRes.text();
-    throw new Error(`AI API error (${aiRes.status}): ${errText}`);
+  try {
+    const aiResult = await callAiModelWithMeta([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Ecco il thread completo da analizzare:\n${conversation.slice(0, 16000)}` }
+    ], { jsonMode: true, temperature: 0.1 });
+
+    rawContent = aiResult.text || '{}';
+    modelUsed = aiResult.modelUsed;
+  } catch (err: any) {
+    throw new Error(`AI API error: ${err.message}`);
   }
 
-  const aiData: any = await aiRes.json();
-  const rawContent = aiData.choices?.[0]?.message?.content || '{}';
   let parsed: any = {};
   try {
     const match = rawContent.match(/```json\s*([\s\S]*?)\s*```/) || rawContent.match(/\{[\s\S]*\}/);
@@ -515,7 +507,7 @@ Rispondi RIGOROSAMENTE con JSON valido in questa struttura:
   parsed.emailCount = emails.length;
   parsed.subject = subject;
   parsed.analyzedAt = new Date().toISOString();
-  parsed.modelUsed = 'sonar';
+  parsed.modelUsed = modelUsed;
 
   saveAnalysis(parsed);
   return parsed;

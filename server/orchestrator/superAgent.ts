@@ -13,6 +13,7 @@ import { KnowledgeSubagent } from './subagents/knowledgeSubagent';
 import { deadlineEngine } from './deadlineEngine';
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync, readFileSync } from 'node:fs';
+import { callAiModelWithMeta } from '../aiClient';
 
 import { FRANK_DB_PATH, LARAVEL_ENV_PATH } from '../paths';
 
@@ -675,37 +676,21 @@ COME OPERI:
 DATI ESTRATTI DAI SUBAGENTI DELEGATI:
 ${contextBlocks.join('\n\n') || 'Nessun dato specifico estratto dai subagenti.'}`;
 
-    const apiKey = getAiApiKey();
     try {
-      const aiRes = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'sonar',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...messages.slice(-6)
-          ],
-          temperature: 0.1
-        })
-      });
-
-      if (aiRes.ok) {
-        const data: any = await aiRes.json();
-        const text = data.choices?.[0]?.message?.content;
-        if (text && text.trim()) {
-          return {
-            text: text.trim(),
-            delegations,
-            model: 'Frank Super Agent (Sonar)'
-          };
-        }
+      const chatMessages = [
+        { role: 'system' as const, content: systemPrompt },
+        ...messages.slice(-6).map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+      ];
+      const result = await callAiModelWithMeta(chatMessages, { temperature: 0.1 });
+      if (result.text && result.text.trim()) {
+        return {
+          text: result.text.trim(),
+          delegations,
+          model: `Frank Super Agent [${result.modelUsed}]`
+        };
       }
     } catch (err) {
-      console.warn('Errore chiamata Sonar in answerUserDialog:', err);
+      console.warn('Errore chiamata LLM in answerUserDialog:', err);
     }
 
     // Fallback locale compatto
