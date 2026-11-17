@@ -162,8 +162,16 @@ export const FrankCopilot: React.FC<FrankCopilotProps> = ({
     setIsLoading(true);
 
     try {
-      // 1. Ricerca semantica preliminare sui chunks documentali disponibili
-      const retrieved = retrieveRelevantChunks(textToSend, chunks, 3);
+      // 1. Ricerca sui chunks documentali SOLO se la domanda è documentale o informativa su documenti/aziende.
+      // Evita di inquinare il prompt con visure/documenti a caso quando l'utente chiede task, email o calendario.
+      const queryLower = textToSend.toLowerCase();
+      const isDocumentSpecificQuery =
+        queryLower.includes('document') || queryLower.includes('pdf') || queryLower.includes('visura') ||
+        queryLower.includes('contratt') || queryLower.includes('partita iva') || queryLower.includes('p.iva') ||
+        queryLower.includes('codice fiscale') || queryLower.includes(' cf ') || queryLower.includes('sede') ||
+        queryLower.includes('pec') || queryLower.includes('statuto') || queryLower.includes('rag') || queryLower.includes('nota');
+
+      const retrieved = isDocumentSpecificQuery ? retrieveRelevantChunks(textToSend, chunks, 3) : [];
 
       // 2. Chiamata al Super Agente con il contesto multi-turno e le fonti trovate
       const res = await fetch('/api/super-agent/chat', {

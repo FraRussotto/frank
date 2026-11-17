@@ -426,7 +426,9 @@ export class FrankSuperAgent {
     const isTasksRemainingQuery =
       q.includes('cosa rimane') || q.includes('cosa resta') || q.includes('cosa c\'è da fare') ||
       q.includes('cosa c e da fare') || q.includes('attività rimaste') || q.includes('task aperti') ||
-      q.includes('rimangono') || q.includes('ancora aperte') || q.includes('ancora aperto');
+      q.includes('rimangono') || q.includes('ancora aperte') || q.includes('ancora aperto') ||
+      q.includes('task in pending') || q.includes('task pendenti') || q.includes('cose da fare') ||
+      q.includes('quali task');
 
     // Gestione esecuzione azioni su note/documenti (es. conferma utente per aggiornare "Entrata")
     const isUpdateNoteIntent =
@@ -434,15 +436,17 @@ export class FrankSuperAgent {
       (recentContextText.toLowerCase().includes('entrata') || recentContextText.toLowerCase().includes('2.700') || recentContextText.toLowerCase().includes('lord') || recentContextText.toLowerCase().includes('nett'));
 
     const isDocRelated =
-      isUpdateNoteIntent ||
-      hasClientSources ||
-      q.includes('iva') || q.includes('p.iva') || q.includes('partita') ||
-      q.includes('codice fiscale') || q.includes('cf') ||
-      q.includes('visura') || q.includes('document') || q.includes('pdf') ||
-      q.includes('word') || q.includes('excel') || q.includes('foglio') ||
-      q.includes('pec') || q.includes('sede') || q.includes('statuto') ||
-      q.includes('contratt') || q.includes('policy') || q.includes('manual') ||
-      q.includes('entrata') || q.includes('lordo') || q.includes('netto') || q.includes('stipendio') || q.includes('reddito');
+      !isTasksRemainingQuery && (
+        isUpdateNoteIntent ||
+        (hasClientSources && (q.includes('visura') || q.includes('document') || q.includes('pdf') || q.includes('allegat') || q.includes('contratt') || q.includes('statuto') || q.includes('pec') || q.includes('iva') || q.includes('codice fiscale'))) ||
+        q.includes('iva') || q.includes('p.iva') || q.includes('partita') ||
+        q.includes('codice fiscale') || q.includes('cf') ||
+        q.includes('visura') || q.includes('document') || q.includes('pdf') ||
+        q.includes('word') || q.includes('excel') || q.includes('foglio') ||
+        q.includes('pec') || q.includes('sede') || q.includes('statuto') ||
+        q.includes('contratt') || q.includes('policy') || q.includes('manual') ||
+        q.includes('entrata') || q.includes('lordo') || q.includes('netto') || q.includes('stipendio') || q.includes('reddito')
+      );
 
     const isEmailRelated =
       isTasksRemainingQuery ||
@@ -453,7 +457,7 @@ export class FrankSuperAgent {
       q.includes('electrolux') || q.includes('scritto') || q.includes('urgent');
 
     const isCalendarRelated =
-      !isUpdateNoteIntent && (
+      !isTasksRemainingQuery && !isUpdateNoteIntent && (
         q.includes('calendar') || q.includes('riunion') || q.includes('meeting') ||
         q.includes('agenda') || q.includes('appuntament') || q.includes('call') ||
         q.includes('orari') || q.includes('quando') || q.includes('settiman') ||
@@ -461,7 +465,7 @@ export class FrankSuperAgent {
       );
 
     const isFinanceRelated =
-      !isUpdateNoteIntent && (
+      !isTasksRemainingQuery && !isUpdateNoteIntent && (
         q.includes('spes') || q.includes('pagar') || q.includes('bollett') ||
         q.includes('affitt') || q.includes('soldi') || q.includes('saldo') ||
         q.includes('bonifico') || q.includes('cost') || q.includes('budget') ||
@@ -483,6 +487,11 @@ export class FrankSuperAgent {
 
     const delegations: Array<{ id: string; name: string; icon: string; detail: string }> = [];
     const contextBlocks: string[] = [];
+
+    let capturedEmailTasks: any[] = [];
+    let capturedDeadlines: any[] = [];
+    let capturedEvents: any[] = [];
+    let capturedExpenses: any[] = [];
 
     if (isUpdateNoteIntent) {
       const updateRes = KnowledgeSubagent.updateDocument('Entrata', '2.700 € lordi mensili');
@@ -571,6 +580,8 @@ export class FrankSuperAgent {
         detail: `${tasks.length} task attivi analizzati dai thread recenti`
       });
 
+      capturedEmailTasks = tasks;
+
       if (tasks.length > 0) {
         const tasksText = tasks
           .slice(0, 10)
@@ -588,6 +599,7 @@ export class FrankSuperAgent {
       if (calendarAgent) {
         const res = await calendarAgent.query('upcoming');
         const events = res?.events || [];
+        capturedEvents = events;
         delegations.push({
           id: 'calendar',
           name: 'Subagente Calendario & Agenda',
@@ -611,6 +623,7 @@ export class FrankSuperAgent {
         const res = await financeAgent.query('all');
         const expenses = res?.expenses || [];
         const unpaid = expenses.filter((e: any) => !e.is_paid);
+        capturedExpenses = unpaid;
         const unpaidTotal = unpaid.reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
         delegations.push({
           id: 'finance',
@@ -631,6 +644,7 @@ export class FrankSuperAgent {
     if (isDeadlineRelated || isGeneralStatus) {
       try {
         const { deadlines, summary } = deadlineEngine.getDeadlines({ status: 'pending' });
+        capturedDeadlines = deadlines;
         if (deadlines.length > 0) {
           delegations.push({
             id: 'deadlines',
@@ -693,9 +707,69 @@ ${contextBlocks.join('\n\n') || 'Nessun dato specifico estratto dai subagenti.'}
       console.warn('Errore chiamata LLM in answerUserDialog:', err);
     }
 
-    // Fallback locale compatto
+    // Fallback Deterministico Smart Core (attivo solo se l'AI remota è temporaneamente non raggiungibile o in rate limit)
+    if (isTasksRemainingQuery || capturedEmailTasks.length > 0) {
+      const alta = capturedEmailTasks.filter(t => (t.urgency || '').toLowerCase().includes('high') || (t.urgency || '').toLowerCase().includes('alt'));
+      const media = capturedEmailTasks.filter(t => !alta.includes(t));
+
+      let lines: string[] = [];
+      lines.push(`Ti rimangono **${capturedEmailTasks.length} task aperti in sospeso**:`);
+      lines.push('');
+      if (alta.length > 0) {
+        lines.push('### ⚡ Alta Priorità');
+        alta.forEach(t => {
+          lines.push(`- **${t.summary}** (Thread: *${t.subject}*)`);
+        });
+        lines.push('');
+      }
+      if (media.length > 0) {
+        lines.push('### 📌 Media Priorità');
+        media.forEach(t => {
+          lines.push(`- ${t.summary} (Thread: *${t.subject}*)`);
+        });
+      }
+      if (capturedEmailTasks.length === 0) {
+        lines.push('✅ Non risultano attività lavorative in sospeso: tutti i task sono completati.');
+      }
+      return {
+        text: lines.join('\n'),
+        delegations,
+        model: 'Frank Smart Core (Risposta Diretta)'
+      };
+    }
+
+    if (isCalendarRelated && capturedEvents.length > 0) {
+      let lines = ['Ecco i tuoi prossimi appuntamenti ed eventi in agenda:'];
+      capturedEvents.slice(0, 6).forEach(e => {
+        lines.push(`- **${e.event_start_at}**: ${e.subject} (${e.sender || 'Lavoro'})`);
+      });
+      return {
+        text: lines.join('\n'),
+        delegations,
+        model: 'Frank Smart Core (Risposta Diretta)'
+      };
+    }
+
+    if (isFinanceRelated && capturedExpenses.length > 0) {
+      let lines = ['Ecco le spese fisse da saldare per questo mese:'];
+      capturedExpenses.forEach(e => {
+        lines.push(`- **${e.name}**: €${e.amount} (scadenza giorno ${e.due_day} del mese)`);
+      });
+      return {
+        text: lines.join('\n'),
+        delegations,
+        model: 'Frank Smart Core (Risposta Diretta)'
+      };
+    }
+
+    // Fallback generico pulito (senza intestazioni grezze interne di debug)
+    const cleanContext = (contextBlocks[0] || '')
+      .replace(/===.*?===/g, '')
+      .replace(/\[FONTE:.*?\]:/g, '')
+      .trim();
+
     return {
-      text: `Ho consultato i subagenti pertinenti per la tua richiesta. ${contextBlocks.slice(0, 1).join('\n')}`,
+      text: cleanContext || 'Ho verificato i dati dell\'ecosistema: non risultano azioni critiche immediate.',
       delegations,
       model: 'Frank Smart Core'
     };

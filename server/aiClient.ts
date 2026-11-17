@@ -206,7 +206,7 @@ export async function callAiModelWithMeta(
   const endpoint = 'https://api.perplexity.ai/chat/completions';
   const perplexityModel = selectedModel.startsWith('gemini') ? 'sonar-pro' : selectedModel;
 
-  const res = await fetch(endpoint, {
+  let res = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -218,6 +218,24 @@ export async function callAiModelWithMeta(
       temperature: options.temperature ?? 0.1
     })
   });
+
+  // Se incontra 429 Rate Limit, attendi 1.5s e riprova una volta
+  if (res.status === 429) {
+    console.warn('[AI Client] Perplexity 429 rate limit incontrato. Nuovo tentativo con modello sonar standard...');
+    await new Promise(r => setTimeout(r, 1500));
+    res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages,
+        temperature: options.temperature ?? 0.1
+      })
+    });
+  }
 
   if (!res.ok) {
     const errText = await res.text();
