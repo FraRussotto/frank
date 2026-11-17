@@ -424,11 +424,16 @@ export class FrankSuperAgent {
     
     // Rileva se l'utente chiede cosa rimane da fare / quali sono le attività residue
     const isTasksRemainingQuery =
-      q.includes('cosa rimane') || q.includes('cosa resta') || q.includes('cosa c\'è da fare') ||
-      q.includes('cosa c e da fare') || q.includes('attività rimaste') || q.includes('task aperti') ||
-      q.includes('rimangono') || q.includes('ancora aperte') || q.includes('ancora aperto') ||
-      q.includes('task in pending') || q.includes('task pendenti') || q.includes('cose da fare') ||
-      q.includes('quali task');
+      q.includes('riman') ||
+      q.includes('da fare') ||
+      q.includes('cosa resta') ||
+      q.includes('pendenti') ||
+      q.includes('pending') ||
+      q.includes('aperti') ||
+      q.includes('aperte') ||
+      q.includes('task') ||
+      q.includes('attivit') ||
+      q.includes('cose da fare');
 
     // Gestione esecuzione azioni su note/documenti (es. conferma utente per aggiornare "Entrata")
     const isUpdateNoteIntent =
@@ -563,14 +568,15 @@ export class FrankSuperAgent {
       // usale per sincronizzare lo stato effettivo con le checkbox a schermo
       if (Array.isArray(clientContext?.ecosystem?.requests) && clientContext.ecosystem.requests.length > 0) {
         const clientPending = clientContext.ecosystem.requests.filter((r: any) => r.status === 'pending');
-        // Se ci sono task nel frontend, mappiamo quelli
-        tasks = clientPending.map((r: any) => ({
-          threadId: r.thread_id,
-          subject: r.email_subject || 'Attività diretta',
-          summary: r.request_text,
-          urgency: r.urgency || 'medium',
-          reason: ''
-        }));
+        if (clientPending.length > 0) {
+          tasks = clientPending.map((r: any) => ({
+            threadId: r.thread_id || r.id || '',
+            subject: r.subject || r.email_subject || 'Email Lavoro',
+            summary: r.summary || r.request_text || r.title || 'Attività pendente',
+            urgency: (r.urgency === 'alta' || r.urgency === 'high') ? 'high' : ((r.urgency === 'bassa' || r.urgency === 'low') ? 'low' : 'medium'),
+            reason: ''
+          }));
+        }
       }
 
       delegations.push({
