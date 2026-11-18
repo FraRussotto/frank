@@ -351,11 +351,14 @@ export class DeadlineEngine {
           WHERE active_tasks_json IS NOT NULL AND active_tasks_json != '[]'
         `).all() as any[];
 
+        const validEmailTaskSourceIds = new Set<string>();
+
         for (const t of threads) {
           try {
             const tasks = JSON.parse(t.active_tasks_json || '[]');
             tasks.forEach((task: any, idx: number) => {
               const sourceId = `email-task-${t.thread_id}-${idx}`;
+              validEmailTaskSourceIds.add(sourceId);
               const existing = checkStmt.all(sourceId) as any[];
 
               if (existing.length === 0) {
@@ -398,25 +401,50 @@ export class DeadlineEngine {
             });
           } catch {}
         }
+
+        // Se un task email è stato completato/smuntato nel thread, aggiorna la scadenza a completed
+        try {
+          const pendingEmailDeadlines = db.prepare("SELECT id, source_id FROM deadlines WHERE source_id LIKE 'email-task-%' AND status = 'pending'").all() as any[];
+          for (const ped of pendingEmailDeadlines) {
+            if (ped.source_id && !validEmailTaskSourceIds.has(ped.source_id)) {
+              db.prepare("UPDATE deadlines SET status = 'completed', completed_at = ? WHERE id = ?").run(new Date().toISOString(), ped.id);
+            }
+          }
+        } catch {}
       } catch (err) {
         console.warn('Sync email tasks error:', err);
       }
 
-      // 2. DALLE SPESE FISSE E SCADENZE PAGAMENTO (Personali - Solo pagamenti manuali, esclude addebito automatico)
+      // 2. DALLE SPESE FISSE E SCADENZE PAGAMENTO (Personali - Solo pagamenti manuali non saldati)
       try {
-        // Rimuove dalle scadenze attive eventuali spese che hanno il flag addebito automatico (non richiedono azione manuale)
+        // Rimuove eventuali scadenze ghost/orfane da vecchie versioni (es. ATM o vecchi Affitti)
         try {
-          const autoDebitExpenses = db.prepare('SELECT id FROM fixed_expenses WHERE is_auto_debit = 1').all() as any[];
-          for (const ad of autoDebitExpenses) {
-            db.prepare('DELETE FROM deadlines WHERE source_id = ?').run(`fin-exp-${ad.id}`);
+          db.prepare(`
+            DELETE FROM deadlines 
+            WHERE (title LIKE '%ATM%' AND source_id LIKE 'fin-exp-%')
+               OR (title LIKE '%Affitto (€650)%')
+          `).run();
+        } catch {}
+
+        // Trova tutti gli id attivi delle spese che richiedono pagamento manuale e non sono saldate
+        const expenses = db.prepare('SELECT * FROM fixed_expenses WHERE is_paid = 0 AND (is_auto_debit = 0 OR is_auto_debit IS NULL)').all() as any[];
+        const validFinSourceIds = new Set<string>(expenses.map(e => `fin-exp-${e.id}`));
+
+        // Elimina da deadlines qualsiasi record fin-exp-* che:
+        // - è collegato a una spesa con addebito automatico (is_auto_debit = 1)
+        // - è collegato a una spesa già saldata (is_paid = 1)
+        // - non esiste più nella tabella fixed_expenses
+        try {
+          const allFinDeadlines = db.prepare("SELECT id, source_id FROM deadlines WHERE source_id LIKE 'fin-exp-%'").all() as any[];
+          for (const fd of allFinDeadlines) {
+            if (!fd.source_id || !validFinSourceIds.has(fd.source_id)) {
+              db.prepare('DELETE FROM deadlines WHERE id = ?').run(fd.id);
+            }
           }
         } catch {}
 
-        const expenses = db.prepare('SELECT * FROM fixed_expenses WHERE is_paid = 0 AND (is_auto_debit = 0 OR is_auto_debit IS NULL)').all() as any[];
         for (const e of expenses) {
           const sourceId = `fin-exp-${e.id}`;
-          const existing = checkStmt.all(sourceId) as any[];
-
           const dueDay = Number(e.due_day || 1);
           let targetMonth = currentMonth;
           let targetYear = currentYear;
@@ -431,13 +459,17 @@ export class DeadlineEngine {
           }
 
           const dueDateStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`;
+          const cleanTitle = `Saldare ${e.name} (€${Number(e.amount).toFixed(2)})`;
+          const cleanDesc = `Spesa fissa ${e.category || 'Casa'} - Scadenza il ${dueDay} del mese`;
+
+          const existing = checkStmt.all(sourceId) as any[];
 
           if (existing.length === 0) {
             const id = `dl-fin-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
             insertStmt.run(
               id,
-              `Saldare ${e.name} (€${e.amount})`,
-              `Spesa fissa ${e.category} - Scadenza il ${dueDay} del mese`,
+              cleanTitle,
+              cleanDesc,
               dueDateStr,
               'pagamento',
               'alta',
@@ -449,6 +481,14 @@ export class DeadlineEngine {
               new Date().toISOString()
             );
             added++;
+          } else {
+            // Aggiorna se già presente in modo da allineare sempre titolo, importo, data a fixed_expenses
+            db.prepare(`
+              UPDATE deadlines
+              SET title = ?, description = ?, due_date = ?, amount = ?, status = 'pending'
+              WHERE source_id = ?
+            `).run(cleanTitle, cleanDesc, dueDateStr, Number(e.amount || 0), sourceId);
+            updated++;
           }
         }
       } catch (err) {

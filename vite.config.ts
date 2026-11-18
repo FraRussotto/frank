@@ -1,3 +1,4 @@
+import { DatabaseSync } from 'node:sqlite';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { exec } from 'node:child_process';
@@ -83,6 +84,17 @@ function emailAgentPlugin() {
       superAgent.startHeartbeat(60 * 1000);
       telegramBot.initBot();
       initTelegramScheduler();
+
+      // Pulizia proattiva e sincronizzazione delle scadenze e spese (elimina residui/ghost nei volumi persistenti Docker)
+      try {
+        const frankDb = new DatabaseSync(FRANK_DB_PATH);
+        frankDb.exec(`
+          DELETE FROM fixed_expenses WHERE name LIKE '%ATM%' OR (name LIKE '%Affitto%' AND amount = 650);
+          DELETE FROM deadlines WHERE title LIKE '%ATM%' OR title LIKE '%Affitto (€650)%';
+        `);
+        frankDb.close();
+      } catch {}
+      deadlineEngine.syncFromAllSubagents().catch(() => {});
 
       // Sincronizzazione nativa Google (Gmail + Calendar) in background
       initGoogleSyncScheduler(10);

@@ -257,6 +257,21 @@ export const App: React.FC = () => {
   }, []);
 
   // Persist to localStorage
+  // Sincronizza inizialmente le spese salvate nel database di Frank
+  useEffect(() => {
+    fetch('/api/expenses')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.expenses) && data.expenses.length > 0) {
+          setExpenses(data.expenses);
+          try {
+            localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(data.expenses));
+          } catch {}
+        }
+      })
+      .catch(err => console.warn('Errore sync iniziale spese da Frank DB:', err));
+  }, []);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
   }, [settings]);
