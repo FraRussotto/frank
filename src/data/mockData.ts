@@ -3,14 +3,25 @@ import { FixedExpense, SyncedEvent, EmailAIRequest, StoredDocument } from '../ty
 export const INITIAL_FIXED_EXPENSES: FixedExpense[] = [
   {
     id: 'exp-1',
-    name: 'Affitto + Bollette Appartamento',
-    amount: 1000,
+    name: 'Affitto',
+    amount: 650,
     category: 'Casa',
     frequency: 'Mensile',
     dueDay: 1,
     isPaid: false,
     isAutoDebit: false,
     notes: 'Bonifico manuale inizio mese'
+  },
+  {
+    id: 'exp-atm',
+    name: 'Abbonamento ATM',
+    amount: 40,
+    category: 'Trasporti',
+    frequency: 'Mensile',
+    dueDay: 1,
+    isPaid: false,
+    isAutoDebit: false,
+    notes: 'Ricarica tessera ATM'
   },
   {
     id: 'exp-palestra',

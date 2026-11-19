@@ -149,7 +149,7 @@ export function toggleAgentTask(
   let taskIndex = -1;
 
   const idStr = String(identifier);
-  if (idStr.startsWith('act-') || idStr.startsWith('res-')) {
+  if (idStr.startsWith('act-') || idStr.startsWith('res-') || idStr.startsWith('agent-')) {
     const parts = idStr.split('-');
     if (parts.length >= 3) {
       taskIndex = parseInt(parts[parts.length - 1], 10);

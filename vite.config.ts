@@ -17,24 +17,9 @@ import { initTelegramScheduler } from './server/telegram/scheduler';
 import { saveTelegramConfig, loadTelegramConfig } from './server/telegram/config';
 import { pollGoogleData, initGoogleSyncScheduler, ensureEmailDatabaseSchema } from './server/services/googleSync';
 import { saveAiConfig, loadAiConfig, getAiCredentials, callAiModelWithMeta } from './server/aiClient';
+import { EMAIL_DB_PATH, FRANK_DB_PATH, UPLOADS_DOCS_DIR, LARAVEL_DIR, LARAVEL_ENV_PATH } from './server/paths';
 
-const LARAVEL_DIR = process.env.LARAVEL_DIR || (
-  existsSync('/Users/fra_russo/email-ai-agent')
-    ? '/Users/fra_russo/email-ai-agent'
-    : path.join(__dirname, '..', 'email-ai-agent')
-);
-const DB_PATH = process.env.EMAIL_DB_PATH || (
-  existsSync(path.join(__dirname, 'database', 'emails.sqlite'))
-    ? path.join(__dirname, 'database', 'emails.sqlite')
-    : existsSync(path.join(__dirname, 'database', 'database.sqlite'))
-      ? path.join(__dirname, 'database', 'database.sqlite')
-      : existsSync(path.join(LARAVEL_DIR, 'database', 'database.sqlite'))
-        ? path.join(LARAVEL_DIR, 'database', 'database.sqlite')
-        : path.join(__dirname, 'database', 'emails.sqlite')
-);
-const LARAVEL_ENV_PATH = process.env.LARAVEL_ENV_PATH || path.join(LARAVEL_DIR, '.env');
-const FRANK_DB_PATH = process.env.FRANK_DB_PATH || path.join(__dirname, 'database', 'frank_agent.sqlite');
-const UPLOADS_DOCS_DIR = process.env.UPLOADS_DOCS_DIR || path.join(__dirname, 'uploads', 'documents');
+const DB_PATH = EMAIL_DB_PATH;
 if (!existsSync(UPLOADS_DOCS_DIR)) {
   mkdirSync(UPLOADS_DOCS_DIR, { recursive: true });
 }
@@ -85,15 +70,7 @@ function emailAgentPlugin() {
       telegramBot.initBot();
       initTelegramScheduler();
 
-      // Pulizia proattiva e sincronizzazione delle scadenze e spese (elimina residui/ghost nei volumi persistenti Docker)
-      try {
-        const frankDb = new DatabaseSync(FRANK_DB_PATH);
-        frankDb.exec(`
-          DELETE FROM fixed_expenses WHERE name LIKE '%Tool AI%' OR name LIKE '%ATM%' OR (name LIKE '%Affitto%' AND amount = 650) OR name LIKE '%Bolletta Luce%' OR name LIKE '%Fibra Internet%' OR name LIKE '%Assicurazione Auto%';
-          DELETE FROM deadlines WHERE title LIKE '%Tool AI%' OR title LIKE '%ATM%' OR title LIKE '%Affitto (€650)%';
-        `);
-        frankDb.close();
-      } catch {}
+      // Sincronizzazione scadenze dai subagenti
       deadlineEngine.syncFromAllSubagents().catch(() => {});
 
       // Sincronizzazione nativa Google (Gmail + Calendar) in background

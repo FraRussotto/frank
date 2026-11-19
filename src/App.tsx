@@ -257,19 +257,24 @@ export const App: React.FC = () => {
   }, []);
 
   // Persist to localStorage
-  // Sincronizza inizialmente le spese salvate nel database di Frank
+  // Carica dal database di Frank SOLO se il client non ha ancora spese salvate nel proprio localStorage
   useEffect(() => {
-    fetch('/api/expenses')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && Array.isArray(data.expenses) && data.expenses.length > 0) {
-          setExpenses(data.expenses);
-          try {
-            localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(data.expenses));
-          } catch {}
-        }
-      })
-      .catch(err => console.warn('Errore sync iniziale spese da Frank DB:', err));
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.EXPENSES);
+      if (!saved || saved === '[]') {
+        fetch('/api/expenses')
+          .then(res => res.json())
+          .then(data => {
+            if (data.success && Array.isArray(data.expenses) && data.expenses.length > 0) {
+              setExpenses(data.expenses);
+              try {
+                localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(data.expenses));
+              } catch {}
+            }
+          })
+          .catch(err => console.warn('Errore sync iniziale spese da Frank DB:', err));
+      }
+    } catch {}
   }, []);
 
   useEffect(() => {
