@@ -76,6 +76,13 @@ function emailAgentPlugin() {
       // Sincronizzazione nativa Google (Gmail + Calendar) in background
       initGoogleSyncScheduler(10);
 
+      server.middlewares.use((req: any, res: any, next: any) => {
+        if (req.url && (req.url.startsWith('/api') || req.url === '/')) {
+          console.log(`[Frank HTTP] ${req.method} ${req.url}`);
+        }
+        next();
+      });
+
       server.middlewares.use(async (req: any, res: any, next: any) => {
         
         // GET /api/live-data
@@ -199,6 +206,9 @@ function emailAgentPlugin() {
                 ? agentResolved.length
                 : Number(agg.done_count || 0);
 
+              // Un thread con task attivi da svolgere non deve MAI essere nascosto per errore
+              const isHidden = (hasRequests && pendingCount > 0) ? false : Boolean(agg.is_hidden);
+
               let maxUrgency: string | null = null;
               if (hasAgentAnalysis) {
                 if (agentActive.some((t: any) => t.urgency === 'high' || t.urgency === 'alta')) {
@@ -264,7 +274,7 @@ function emailAgentPlugin() {
                 done_count: doneCount,
                 pending_count: pendingCount,
                 has_requests: hasRequests,
-                is_hidden: Boolean(agg.is_hidden),
+                is_hidden: isHidden,
                 requests: finalRequests,
                 emails: group.map(e => ({
                   id: e.id,

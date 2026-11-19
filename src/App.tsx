@@ -57,12 +57,14 @@ function isIgnoredEventTitle(title: string): boolean {
 function isMockExpenseList(list: any[]): boolean {
   if (!Array.isArray(list) || list.length === 0) return false;
   return list.some((e: any) => 
-    e?.name === 'Bolletta Luce & Gas' || 
-    e?.name === 'Connessione Fibra Internet' || 
-    e?.name === 'Tool AI & Cloud Subscriptions' || 
-    e?.name === 'Assicurazione Auto & Moto' ||
-    (e?.name === 'Affitto / Mutuo Appartamento' && e?.amount === 850) ||
-    (e?.name === 'Abbonamento Palestra' && e?.amount === 55)
+    (typeof e?.name === 'string' && (
+      e.name.includes('Luce & Gas') || 
+      e.name.includes('Fibra') || 
+      e.name.includes('Tool AI') || 
+      e.name.includes('Assicurazione Auto') ||
+      (e.name.includes('Affitto') && e?.amount === 850) ||
+      (e.name.includes('Palestra') && e?.amount === 55)
+    ))
   );
 }
 

@@ -74,13 +74,14 @@ export const EmailCalendarUnifiedView: React.FC<EmailCalendarUnifiedViewProps> =
     if (threadStatusFilter === 'hidden') {
       if (!thread.is_hidden) return false;
     } else {
-      if (thread.is_hidden) return false;
-
-      // 2. Filtro Stato
+      // I thread con task aperti da svolgere sono prioritari e visibili nella vista 'In attesa'
       if (threadStatusFilter === 'pending') {
         if (!thread.has_requests || thread.pending_count === 0) return false;
-      } else if (threadStatusFilter === 'done') {
-        if (!thread.has_requests || thread.done_count === 0) return false;
+      } else {
+        if (thread.is_hidden) return false;
+        if (threadStatusFilter === 'done') {
+          if (!thread.has_requests || thread.done_count === 0) return false;
+        }
       }
 
       // 3. Flag Nascondi completati
