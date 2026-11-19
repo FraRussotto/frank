@@ -264,22 +264,36 @@ function parseSenderString(fromStr: string): { name: string; email: string } {
   return { name: fromStr.trim(), email: fromStr.trim() };
 }
 
-// Sincronizzazione Gmail nativa
-export async function syncGmail(accessToken: string, sinceDate: Date = new Date('2026-11-01T00:00:00Z')): Promise<{ fetched: number; inserted: number }> {
+// Sincronizzazione Gmail nativa con paginazione
+export async function syncGmail(accessToken: string, sinceDate: Date = new Date(Date.now() - 14 * 86400 * 1000)): Promise<{ fetched: number; inserted: number }> {
   const epoch = Math.floor(sinceDate.getTime() / 1000);
   const q = `after:${epoch}`;
   
-  const listUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(q)}&maxResults=100`;
-  const listRes = await fetch(listUrl, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  });
+  let messages: Array<{ id: string; threadId: string }> = [];
+  let pageToken: string | undefined = undefined;
+  let pageCount = 0;
 
-  if (!listRes.ok) {
-    throw new Error(`Gmail API list failed (${listRes.status}): ${await listRes.text()}`);
-  }
+  do {
+    let listUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(q)}&maxResults=100`;
+    if (pageToken) {
+      listUrl += `&pageToken=${encodeURIComponent(pageToken)}`;
+    }
+    const listRes = await fetch(listUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
 
-  const listData = await listRes.json();
-  const messages = listData.messages || [];
+    if (!listRes.ok) {
+      console.warn(`Gmail API list page failed (${listRes.status}):`, await listRes.text());
+      break;
+    }
+
+    const listData = await listRes.json();
+    const msgs = listData.messages || [];
+    messages.push(...msgs);
+    pageToken = listData.nextPageToken;
+    pageCount++;
+  } while (pageToken && pageCount < 5);
+
   if (messages.length === 0) {
     return { fetched: 0, inserted: 0 };
   }
@@ -488,8 +502,8 @@ export async function pollGoogleData(sinceDate?: Date): Promise<GoogleSyncResult
   try {
     const accessToken = await getFreshAccessToken();
 
-    // 1. Sync Gmail
-    const emailResult = await syncGmail(accessToken, sinceDate || new Date('2026-11-01T00:00:00Z'));
+    // 1. Sync Gmail (ultimi 14 giorni per garantire continuità senza superare quote)
+    const emailResult = await syncGmail(accessToken, sinceDate || new Date(Date.now() - 14 * 86400 * 1000));
     console.log(`[GoogleSync] ✉️ Gmail sincronizzato: ${emailResult.fetched} messaggi totali trovati, ${emailResult.inserted} nuovi inseriti.`);
 
     // 2. Sync Calendar

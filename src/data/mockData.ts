@@ -3,63 +3,47 @@ import { FixedExpense, SyncedEvent, EmailAIRequest, StoredDocument } from '../ty
 export const INITIAL_FIXED_EXPENSES: FixedExpense[] = [
   {
     id: 'exp-1',
-    name: 'Affitto / Mutuo Appartamento',
-    amount: 850,
+    name: 'Affitto + Bollette Appartamento',
+    amount: 1000,
     category: 'Casa',
     frequency: 'Mensile',
     dueDay: 1,
-    isPaid: true,
-    notes: 'Bonifico automatico inizio mese'
-  },
-  {
-    id: 'exp-2',
-    name: 'Bolletta Luce & Gas',
-    amount: 145,
-    category: 'Utenze',
-    frequency: 'Bimestrale',
-    dueDay: 15,
     isPaid: false,
-    notes: 'Scadenza tra 4 giorni'
+    isAutoDebit: false,
+    notes: 'Bonifico manuale inizio mese'
   },
   {
-    id: 'exp-3',
-    name: 'Connessione Fibra Internet',
-    amount: 29.90,
-    category: 'Utenze',
+    id: 'exp-palestra',
+    name: 'Abbonamento Palestra',
+    amount: 159,
+    category: 'Abbonamenti',
     frequency: 'Mensile',
-    dueDay: 10,
-    isPaid: true,
+    dueDay: 5,
+    isPaid: false,
+    isAutoDebit: true,
+    notes: 'Accesso Open - Addebito diretto SDD'
+  },
+  {
+    id: 'exp-assicurazione',
+    name: 'Assicurazione sanitaria',
+    amount: 22.20,
+    category: 'Altro',
+    frequency: 'Mensile',
+    dueDay: 8,
+    isPaid: false,
+    isAutoDebit: true,
     notes: 'Addebito diretto SDD'
   },
   {
-    id: 'exp-4',
-    name: 'Tool AI & Cloud Subscriptions',
-    amount: 40,
-    category: 'Lavoro',
-    frequency: 'Mensile',
-    dueDay: 20,
-    isPaid: false,
-    notes: 'Gemini Advanced + API Serverless'
-  },
-  {
-    id: 'exp-5',
-    name: 'Assicurazione Auto & Moto',
-    amount: 65,
-    category: 'Trasporti',
-    frequency: 'Mensile',
-    dueDay: 27,
-    isPaid: false,
-    notes: 'Rata mensile Zurich'
-  },
-  {
-    id: 'exp-6',
-    name: 'Abbonamento Palestra',
-    amount: 55,
+    id: 'exp-playstation',
+    name: 'Rata Playstation',
+    amount: 75,
     category: 'Altro',
     frequency: 'Mensile',
-    dueDay: 5,
-    isPaid: true,
-    notes: 'Accesso Open'
+    dueDay: 9,
+    isPaid: false,
+    isAutoDebit: true,
+    notes: 'Addebito automatico mensile'
   }
 ];
 

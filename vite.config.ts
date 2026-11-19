@@ -89,8 +89,8 @@ function emailAgentPlugin() {
       try {
         const frankDb = new DatabaseSync(FRANK_DB_PATH);
         frankDb.exec(`
-          DELETE FROM fixed_expenses WHERE name LIKE '%ATM%' OR (name LIKE '%Affitto%' AND amount = 650);
-          DELETE FROM deadlines WHERE title LIKE '%ATM%' OR title LIKE '%Affitto (€650)%';
+          DELETE FROM fixed_expenses WHERE name LIKE '%Tool AI%' OR name LIKE '%ATM%' OR (name LIKE '%Affitto%' AND amount = 650) OR name LIKE '%Bolletta Luce%' OR name LIKE '%Fibra Internet%' OR name LIKE '%Assicurazione Auto%';
+          DELETE FROM deadlines WHERE title LIKE '%Tool AI%' OR title LIKE '%ATM%' OR title LIKE '%Affitto (€650)%';
         `);
         frankDb.close();
       } catch {}

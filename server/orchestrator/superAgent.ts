@@ -357,6 +357,12 @@ export class FrankSuperAgent {
         JSON.stringify(briefing.crossDomainInsights),
         JSON.stringify(briefing.stats)
       );
+
+      // Mantieni solo gli ultimi 20 briefing per evitare bloat del database SQLite
+      try {
+        db.prepare("DELETE FROM super_agent_briefings WHERE id NOT IN (SELECT id FROM super_agent_briefings ORDER BY generated_at DESC LIMIT 20)").run();
+      } catch {}
+
       db.close();
     } catch (e) {
       console.warn('SuperAgent saveBriefing error:', e);
@@ -397,6 +403,9 @@ export class FrankSuperAgent {
         INSERT INTO super_agent_logs (timestamp, event_type, target_subagent, details)
         VALUES (?, ?, ?, ?)
       `).run(new Date().toISOString(), eventType, target, details);
+      try {
+        db.prepare("DELETE FROM super_agent_logs WHERE id NOT IN (SELECT id FROM super_agent_logs ORDER BY id DESC LIMIT 50)").run();
+      } catch {}
       db.close();
     } catch {}
   }

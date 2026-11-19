@@ -31,7 +31,6 @@ uploads/documents/*
 database/database.sqlite
 database/emails.sqlite
 database/*.sqlite
+!database/frank_agent.sqlite
 
-config/telegram.json
-config/google.json
 config/*.json
