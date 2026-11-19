@@ -54,6 +54,18 @@ function isIgnoredEventTitle(title: string): boolean {
   return false;
 }
 
+function isMockExpenseList(list: any[]): boolean {
+  if (!Array.isArray(list) || list.length === 0) return false;
+  return list.some((e: any) => 
+    e?.name === 'Bolletta Luce & Gas' || 
+    e?.name === 'Connessione Fibra Internet' || 
+    e?.name === 'Tool AI & Cloud Subscriptions' || 
+    e?.name === 'Assicurazione Auto & Moto' ||
+    (e?.name === 'Affitto / Mutuo Appartamento' && e?.amount === 850) ||
+    (e?.name === 'Abbonamento Palestra' && e?.amount === 55)
+  );
+}
+
 export const App: React.FC = () => {
   const navigate = useNavigate();
 
@@ -127,7 +139,13 @@ export const App: React.FC = () => {
   const [expenses, setExpenses] = useState<FixedExpense[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.EXPENSES);
-      return saved ? JSON.parse(saved) : INITIAL_FIXED_EXPENSES;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0 && !isMockExpenseList(parsed)) {
+          return parsed;
+        }
+      }
+      return INITIAL_FIXED_EXPENSES;
     } catch {
       return INITIAL_FIXED_EXPENSES;
     }
@@ -257,24 +275,28 @@ export const App: React.FC = () => {
   }, []);
 
   // Persist to localStorage
-  // Carica dal database di Frank SOLO se il client non ha ancora spese salvate nel proprio localStorage
+  // Sincronizza inizialmente le spese dal database di Frank
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.EXPENSES);
-      if (!saved || saved === '[]') {
-        fetch('/api/expenses')
-          .then(res => res.json())
-          .then(data => {
-            if (data.success && Array.isArray(data.expenses) && data.expenses.length > 0) {
-              setExpenses(data.expenses);
-              try {
-                localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(data.expenses));
-              } catch {}
-            }
-          })
-          .catch(err => console.warn('Errore sync iniziale spese da Frank DB:', err));
-      }
-    } catch {}
+    fetch('/api/expenses')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.expenses) && data.expenses.length > 0) {
+          const saved = localStorage.getItem(STORAGE_KEYS.EXPENSES);
+          let currentSaved: any[] = [];
+          try {
+            currentSaved = saved ? JSON.parse(saved) : [];
+          } catch {}
+
+          // Se il localStorage contiene i vecchi mock o è vuoto, adotta subito le spese reali del server
+          if (isMockExpenseList(currentSaved) || currentSaved.length === 0) {
+            setExpenses(data.expenses);
+            try {
+              localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(data.expenses));
+            } catch {}
+          }
+        }
+      })
+      .catch(err => console.warn('Errore sync iniziale spese da Frank DB:', err));
   }, []);
 
   useEffect(() => {
@@ -282,6 +304,9 @@ export const App: React.FC = () => {
   }, [settings]);
 
   useEffect(() => {
+    // Non salvare né sincronizzare mai se sono presenti i vecchi mock
+    if (isMockExpenseList(expenses)) return;
+
     localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
     // Sincronizza istantaneamente con il Subagente Spese & Finanze nel backend
     fetch('/api/expenses/sync', {
